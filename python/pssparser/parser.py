@@ -73,6 +73,15 @@ class ParseException(Exception):
         self.markers = markers or []
 
 class Parser(object):
+    """Parse and link PSS sources.
+
+    A thin wrapper over the core's parse-and-link session
+    (``pssp::IParserSession``; core-in-leaf-plan.md CF1). The session keeps
+    the units, the linked root and the file names, loads the core library,
+    turns an escaped C++ exception into a PSSP000 marker, and resolves and
+    sorts markers. What is left here is reading files and the Python shape of
+    the results.
+    """
 
     def __init__(
             self,
@@ -94,23 +103,15 @@ class Parser(object):
         import pssparser.ast as zsp_ast
         self.ast_f = zsp_ast.Factory.inst()
         self.parser_f = zspp.Factory.inst()
+        self._session = self.parser_f.mkParserSession()
+        self._session.setCollectDocstrings(collect_docstrings)
+        self._session.setCollectComments(collect_comments)
+        #: The linked root. It owns the units; the session holds it borrowed,
+        #: so it must live as long as the session does.
         self._root = None
-        self._filenames : Dict[int,str] = {}
-        self._files : List[zsp_ast.GlobalScope] = []
-        self._enable_profiling = False
-        self._last_builder = None
         self._markers = []
-        #: fileid -> path, snapshotted by link() before it clears its state.
-        self._file_map : Dict[int,str] = {}
-        #: One builder per Parser, created lazily by _mkBuilder.
-        self._builder = None
-        #: Applied by _mkBuilder to every builder it creates. link() drops the
-        #: builder, so these cannot be set once at construction time.
         self._collect_docstrings = collect_docstrings
         self._collect_comments = collect_comments
-        #: 0 (default) is unlimited. A library caller wants every diagnostic;
-        #: the cap is a terminal-output affordance the CLI opts into.
-        self._max_errors = 0
         #: Phase name -> nanoseconds, accumulated across parse() calls. Read
         #: by the CLI's --stats. Kept here rather than in the CLI because the
         #: standard-library load happens inside parse() and is invisible from
@@ -129,225 +130,91 @@ class Parser(object):
     def set_max_errors(self, max_errors: int) -> None:
         """Stop reporting further errors for a file after ``max_errors``.
 
-        ``0`` (the default) means unlimited. Applies to every marker
-        collector this Parser creates from this point on (parse/parses/link).
-        Only error-severity markers count against the cap; a file that hits
-        it gets one extra PSSP007 marker announcing the cutoff.
+        ``0`` (the default) means unlimited. Applies to every parse and link
+        from this point on. Only error-severity markers count against the cap;
+        a file that hits it gets one extra PSSP007 marker announcing the
+        cutoff.
         """
-        self._max_errors = max_errors
+        self._session.setMaxErrors(max_errors)
 
-    def _mkBuilder(self, marker_l):
-        """Return this Parser's builder, pointed at *marker_l*.
+    @property
+    def _files(self) -> List['zsp_ast.GlobalScope']:
+        """The units parsed since the last link(), core library first.
+        Borrowed: the session owns them, and link() hands them to the root."""
+        return self._session.units()
 
-        The builder is created once and reused, because it accumulates the
-        source units it has processed: compile-time expressions are evaluated
-        during AST construction and may reference types and constants from a
-        previously-processed unit (PSS 3.1 19.1.2).  A builder per parse() call
-        would restart that environment, so a second call could not see the
-        constants declared by the first.  Each call still gets a fresh marker
-        collector, since markers are reported per call.
-        """
-        if self._builder is None:
-            self._builder = self.parser_f.mkAstBuilder(marker_l)
-        else:
-            self._builder.setMarkerListener(marker_l)
-        # Set unconditionally rather than only on creation: link() drops the
-        # builder, so a Parser reused across link boundaries builds a fresh one
-        # that would otherwise come back with collection off.
-        #
-        # Docstrings first: setCollectComments(True) turns docstring collection
-        # on as a side effect, and the reverse order would undo it.
-        self._builder.setCollectDocStrings(self._collect_docstrings)
-        self._builder.setCollectComments(self._collect_comments)
-        return self._builder
+    @property
+    def _filenames(self) -> Dict[int, str]:
+        """fileid -> name of the sources parsed since the last link()."""
+        return self._session.sourceNames()
 
-    def parse(self, files : List[str]) -> bool:
-        import pssparser.core as zspp
-        marker_l = self.parser_f.mkMarkerCollector()
-        marker_l.setMaxErrors(self._max_errors)
-        builder = self._mkBuilder(marker_l)
-
-        if self._enable_profiling:
-            builder.setEnableProfile(True)
-
-        file_id = 0
-        if len(self._files) == 0:
-            t0 = time.perf_counter_ns()
-            stdlib = self.ast_f.mkGlobalScope(len(self._files))
-            self.parser_f.loadStandardLibrary(builder, stdlib)
-            self._files.append(stdlib)
+    def _begin(self) -> None:
+        """Open a parse call; the first one loads the core library."""
+        self._markers = []
+        self._session.clearMarkers()
+        first = self._session.nextFileid() == 0
+        t0 = time.perf_counter_ns()
+        self._session.beginParse()
+        if first:
             self._add_timing("stdlib", time.perf_counter_ns() - t0)
 
+    def _parse_one(self, name: str, text: str) -> None:
+        if not self._session.parseSource(name, text):
+            self._markers = self._session.markers()
+            raise ParseException(self._mkErrorMessage(), self._markers)
+
+    def parse(self, files : List[str]) -> bool:
+        self._begin()
         for f in files:
-            id = len(self._files)
-            self._filenames[id] = f
-            # Timed as one span: the builder reads from the open file object,
-            # so the I/O is interleaved with parsing and cannot be separated
-            # without buffering the whole source first. Reported under a name
-            # that says so rather than as a bare "parse".
+            # One span for reading and parsing, under a name that says so.
             t0 = time.perf_counter_ns()
             with open(f, "r") as fp:
-                ast = self.ast_f.mkGlobalScope(id)
-                try:
-                    builder.build(ast, fp)
-                except RuntimeError as exc:
-                    self._markers = self._collectMarkers(marker_l)
-                    m = _internal_error_marker("while parsing", exc, f)
-                    self._markers.append(m)
-                    raise ParseException(m["message"], self._markers)
+                text = fp.read()
+            self._parse_one(f, text)
             self._add_timing("parse (incl. read)", time.perf_counter_ns() - t0)
-
-            if marker_l.hasSeverity(zspp.MarkerSeverityE.Error):
-                self._markers = self._collectMarkers(marker_l)
-                err = self._mkErrorMessage(marker_l)
-                raise ParseException(err, self._markers)
-
-            self._files.append(ast)
-
-        self._last_builder = builder
-        self._markers = self._collectMarkers(marker_l)
-
+        self._markers = self._session.markers()
         return True
 
     def parses(self, files : List[Tuple[str, str]]) -> bool:
-        import pssparser.core as zspp
-        marker_l = self.parser_f.mkMarkerCollector()
-        marker_l.setMaxErrors(self._max_errors)
-        builder = self._mkBuilder(marker_l)
-
-        if self._enable_profiling:
-            builder.setEnableProfile(True)
-
-        if len(self._files) == 0:
-            stdlib = self.ast_f.mkGlobalScope(len(self._files))
-            self.parser_f.loadStandardLibrary(builder, stdlib)
-            self._files.append(stdlib)
-
-        for fname,fstr in files:
-            id = len(self._files)
-            self._filenames[id] = fname
-            ast = self.ast_f.mkGlobalScope(id)
-            try:
-                builder.build(ast, StringIO(fstr))
-            except RuntimeError as exc:
-                self._markers = self._collectMarkers(marker_l)
-                m = _internal_error_marker("while parsing", exc, fname)
-                self._markers.append(m)
-                raise ParseException(m["message"], self._markers)
-            
-            if marker_l.hasSeverity(zspp.MarkerSeverityE.Error):
-                self._markers = self._collectMarkers(marker_l)
-                err = self._mkErrorMessage(marker_l)
-                raise ParseException(err, self._markers)
-
-            self._files.append(ast)
-
-        self._last_builder = builder
-        self._markers = self._collectMarkers(marker_l)
-
+        self._begin()
+        for fname, fstr in files:
+            self._parse_one(fname, fstr)
+        self._markers = self._session.markers()
         return True
-    
+
     def enable_profiling(self, enable: bool = True):
         """Enable or disable ANTLR profiling for subsequent parse operations."""
-        # Profiling must be enabled before creating builder
-        # This is a placeholder - will take effect on next parse
-        self._enable_profiling = enable
+        self._session.setEnableProfiling(enable)
 
     def get_profile_info(self):
         """Get profiling information from the last parse operation.
-        
-        Returns ParseProfileInfo object with decision-level and aggregate metrics,
-        or None if profiling was not enabled or no parse has been performed.
+
+        Returns ParseProfileInfo object with decision-level and aggregate
+        metrics, or None if profiling was not enabled, nothing has been
+        parsed, or :meth:`link` has run (it drops the builder that holds the
+        profile).
         """
-        if hasattr(self, '_last_builder') and self._last_builder is not None:
-            return self._last_builder.getProfileInfo()
-        return None
-    
+        return self._session.profileInfo()
+
     def link(self) -> 'zsp_ast.RootSymbolScope':
-        import pssparser.core as zspp
-        linker = self.parser_f.mkAstLinker()
-        marker_l = self.parser_f.mkMarkerCollector()
-        marker_l.setMaxErrors(self._max_errors)
+        """Link every unit parsed so far and return the linked root.
 
-        # The C++ linker reports its own failures as PSSP000 markers; a
-        # RuntimeError here means something escaped even that catch-all
-        # (`except +` in decl.pxd). Same diagnosis, raised from this side.
-        escaped = None
-        try:
-            ret = linker.link(marker_l, self._files)
-        except RuntimeError as exc:
-            ret = None
-            escaped = _internal_error_marker("while linking", exc)
+        Raises ParseException if the link produces an error-severity marker,
+        after recording the root: a caught exception still leaves ``root``,
+        :meth:`user_units` and :attr:`file_map` usable. What it does not leave
+        is a trustworthy cross-file view -- type references may be unresolved,
+        which is what the error was about.
 
-        # Collect unconditionally. This ran only inside the `hasSeverity`
-        # branch below, so a link that produced warnings but no errors built
-        # them, handed them to the collector, and then dropped them: the CLI
-        # reads `parser.markers`, which stayed empty, and printed "0 errors in
-        # 0 files". Both parse paths above already collect on success; only
-        # this one did not.
-        self._markers.extend(self._collectMarkers(marker_l))
-        if escaped is not None:
-            self._markers.append(escaped)
-        # Re-sort: parse-time and link-time markers are each internally
-        # sorted by _collectMarkers, but concatenating two sorted lists is
-        # not itself sorted (G8).
-        self._markers.sort(key=lambda e: (e["file"], e["line"], e["col"]))
-
-        # Record the result *before* reporting failure.
-        #
-        # This block used to sit below the raise, which made a failed link
-        # leave the Parser holding nothing: user_units() returned [] and
-        # file_map was {}. Ownership of the units has already moved into
-        # `ret` inside link() by this point, so they exist and are walkable
-        # -- the Parser simply never recorded where they went, and a caller
-        # that caught the exception had no route back to them.
-        #
-        # AstLinker::link() has one return and no early exit: errors are
-        # reported through the marker listener, never by returning null. So
-        # there is no error path on which `ret` is unusable, and nothing here
-        # needs to be conditional.
-        #
-        # What a caught ParseException leaves available is the per-file view:
-        # each file's declarations and their doc comments. What it does not
-        # leave is a trustworthy cross-file view -- type references may be
-        # unresolved and extensions may not have been merged, which is what
-        # the error was about.
-        #
-        # Snapshot the fileid -> path mapping before clearing. Consumers that
-        # run *after* linking -- checker plug-ins in particular -- still need
-        # to resolve a fileid to a path, and clearing without a snapshot is
-        # why CheckContext.file_map arrived empty.
-        #
-        # Only the mapping is retained, never the GlobalScope objects. The
-        # linker takes ownership of them (TaskBuildSymbolTree pushes each into
-        # root->getUnits() as an owning pointer), so a Python wrapper kept
-        # past this point is a second owner of the same memory and will fault.
-        # That is why _files is cleared here; it is deliberate, not an
-        # oversight. Reach the per-file scopes through the linked root
-        # instead -- see user_units().
-        self._file_map = dict(self._filenames)
-        self._root = ret
-
-        self._filenames.clear()
-        self._files.clear()
-
-        # Drop the builder along with the units it was handed.  It holds
-        # borrowed pointers to these GlobalScopes as its compile-time
-        # environment (PSS 3.1 19.1.2), and ownership has just moved to the
-        # linked root: a later link() replaces that root, frees the scopes, and
-        # a parse() after that would read freed memory.  A fresh builder
-        # restarts the environment, which matches what just happened -- these
-        # units are no longer the Parser's to offer.
-        self._builder = None
-
-        if escaped is not None:
-            raise ParseException(escaped["message"], self._markers)
-
-        if marker_l.hasSeverity(zspp.MarkerSeverityE.Error):
-            err = self._mkErrorMessage(marker_l)
-            raise ParseException(err, self._markers)
-
-        return ret
+        Parse-time markers are kept, and link-time ones merged in.
+        """
+        ok = self._session.link()
+        # The session keeps a borrowed pointer; this wrapper owns the root,
+        # and with it the units.
+        self._root = self._session.releaseRoot()
+        self._markers = self._session.markers()
+        if not ok:
+            raise ParseException(self._mkErrorMessage(), self._markers)
+        return self._root
 
     @property
     def collect_docstrings(self) -> bool:
@@ -368,7 +235,7 @@ class Parser(object):
         Use :meth:`resolve_location` for a path and line that covers the core
         library (fileid 0) too.
         """
-        return dict(self._file_map)
+        return self._session.fileMap()
 
     def user_units(self) -> List['zsp_ast.GlobalScope']:
         """The GlobalScope of each user-supplied file, in parse order.
@@ -378,15 +245,7 @@ class Parser(object):
 
         Returns an empty list before :meth:`link` has run.
         """
-        if self._root is None:
-            return []
-        out = []
-        for i in range(self._root.numUnits()):
-            u = self._root.getUnit(i)
-            if u is not None and u.getFileid() in self._file_map:
-                out.append(u)
-        return out
-
+        return self._session.userUnits()
 
     def inactive_regions(self) -> List['InactiveRegion']:
         """The source regions a `compile if` left out, in the user files.
@@ -405,146 +264,42 @@ class Parser(object):
 
         Returns an empty list before :meth:`link` has run.
         """
-        import pssparser.ast as A
-        out = []
-
-        class _V(A.VisitorBase):
-            def visitScope(self, i):
-                for c in range(i.numCompile_conds()):
-                    cc = i.getCompile_cond(c)
-                    for r in range(cc.numInactive()):
-                        rr = cc.getInactive(r)
-                        out.append(InactiveRegion(rr.fileid, rr.start_line,
-                                                  rr.start_col, rr.end_line,
-                                                  rr.end_col))
-                super().visitScope(i)
-
-        v = _V()
-        for u in self.user_units():
-            u.accept(v)
-        out.sort()
-        return out
+        return [InactiveRegion(*r) for r in self._session.inactiveRegions()]
 
     def resolve_location(self, fileid: int, line: int) -> Tuple[str, int]:
         """The display ``(path, line)`` of a location, from its fileid and line.
 
         A user file's line is its own. The core library is a single unit,
         fileid 0, whose line is mapped to the library file it falls in:
-        ``("<stdlib>/addr_reg_pkg.pss", 12)``.
+        ``("<stdlib>/addr_reg_pkg.pss", 12)``. Fileid -1, the types the core
+        synthesises, is ``<builtin>``.
         """
-        if fileid == 0:
-            loc = core_library_location(line)
-            if loc is not None:
-                return loc
-            return ("<stdlib>", line)
-        return (self._pathOf(fileid), line)
+        return self._session.resolveLocation(fileid, line)
 
-    def _pathOf(self, fileid: int) -> str:
-        """Source path for *fileid*, from either the live map or the snapshot.
-
-        ``_filenames`` is the in-flight mapping and ``_file_map`` the snapshot
-        link() keeps after clearing it. Consulting both means a message can be
-        formatted on either side of that clear: link() records its result
-        before raising, so _mkErrorMessage runs after the clear and would
-        otherwise report every marker against "<unknown>".
-        """
-        if fileid in self._filenames:
-            return self._filenames[fileid]
-        return self._file_map.get(fileid, "<unknown>")
-
-    def _mkErrorMessage(self, marker_l) -> str:
-        import pssparser.core as zspp
+    def _mkErrorMessage(self) -> str:
+        """The last call's markers, one per line, for ParseException."""
         prefix = {
-            zspp.MarkerSeverityE.Error : "Error: ",
-            zspp.MarkerSeverityE.Warn : "Warning: ",
-            zspp.MarkerSeverityE.Info : "Info: ",
-            zspp.MarkerSeverityE.Hint : "Hint: ",
+            "error": "Error: ",
+            "warning": "Warning: ",
+            "info": "Info: ",
+            "hint": "Hint: ",
         }
         msg = ""
-        for i in range(marker_l.numMarkers()):
-            marker = marker_l.getMarker(i)
-            loc = marker.loc()
-            path, line = self.resolve_location(loc.file, loc.line)
-            marker_m = "%s%s %s:%d:%d" % (
-                prefix[int(marker.severity())],
-                marker.msg(),
-                path,
-                line,
-                loc.pos)
-            msg += marker_m + "\n"
-
+        for m in self._session.callMarkers():
+            msg += "%s%s %s:%d:%d\n" % (
+                prefix.get(m["severity"], ""),
+                m["message"],
+                m["file"],
+                m["line"],
+                m["col"])
         return msg
-
-    def _collectMarkers(self, marker_l) -> list:
-        """Collect structured marker data from a MarkerCollector."""
-        import pssparser.core as zspp
-        severity_names = {
-            int(zspp.MarkerSeverityE.Error): "error",
-            int(zspp.MarkerSeverityE.Warn): "warning",
-            int(zspp.MarkerSeverityE.Info): "info",
-            int(zspp.MarkerSeverityE.Hint): "hint",
-        }
-        result = []
-        for i in range(marker_l.numMarkers()):
-            m = marker_l.getMarker(i)
-            loc = m.loc()
-            filename, line = self.resolve_location(loc.file, loc.line)
-            code = m.id()
-            if code == INTERNAL_ERROR_CODE and loc.file < 0:
-                # A C++ internal error with no source location: render it as
-                # a tool-level diagnostic, not as "<unknown>:-1:-1".
-                filename = _no_file()
-            entry = {
-                "severity": severity_names.get(int(m.severity()), "unknown"),
-                "message": m.msg(),
-                "file": filename,
-                "line": line,
-                # `Location.linepos` is 1-based on the C++ side; see the
-                # invariant documented in ast/coretypes.yaml. No adjustment
-                # belongs here -- one used to, and it was wrong for every
-                # producer except the syntax-error path.
-                "col": loc.pos,
-                "extent": m.extent(),
-                "related": [
-                    dict(zip(("file", "line"), self.resolve_location(
-                            rel["loc"].file, rel["loc"].line)),
-                         col=rel["loc"].pos,
-                         label=rel["label"])
-                    for rel in m.related()
-                ],
-            }
-            if code:
-                entry["code"] = code
-            # A2: the repair, when the builder could offer a complete one. Its
-            # span is its own -- an insertion has extent 0, which the
-            # diagnostic's span never does -- so it travels as a separate
-            # field rather than being inferred from `col`/`extent`.
-            fixes = m.fixes()
-            if fixes:
-                fix = fixes[0]
-                fix_file, fix_line = self.resolve_location(
-                    fix["span"].file, fix["span"].line)
-                entry["fix"] = {
-                    "file": fix_file,
-                    "line": fix_line,
-                    "col": fix["span"].pos,
-                    "extent": fix["extent"],
-                    "replacement": fix["replacement"],
-                }
-            result.append(entry)
-        # Stable sort by (file, line, col): different passes (parse-time
-        # syntax errors, link-time resolution, the post-link completeness
-        # check) each emit in their own encounter order, and interleaving
-        # those without resorting produces diagnostics that jump around the
-        # source file. Stable so markers that share a location keep their
-        # relative emission order (e.g. a cascade at the same point).
-        result.sort(key=lambda e: (e["file"], e["line"], e["col"]))
-        return result
 
     @property
     def markers(self) -> list:
-        """Structured list of markers from the last parse/link operation.
-        
+        """Structured list of markers from the last parse/link operation,
+        sorted by (file, line, col). A parse call starts the list afresh; a
+        link adds its markers to the parse's.
+
         Each marker is a dict with keys:
             severity: "error", "warning", "info", or "hint"
             message: Human-readable error message

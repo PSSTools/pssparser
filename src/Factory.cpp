@@ -31,6 +31,7 @@
 #include "NameResolver.h"
 #include "TaskFindElementByLocation.h"
 #include "OccurrenceCollector.h"
+#include "ParserSession.h"
 #include "TaskLoadStandardLibrary.h"
 #include "TaskLookupLocation.h"
 #include "ValInt.h"
@@ -128,6 +129,10 @@ IOccurrenceCollector *Factory::mkOccurrenceCollector() {
 
 lint::ILintEngine *Factory::mkLintEngine() {
     return new lint::LintEngine();
+}
+
+IParserSession *Factory::mkParserSession() {
+    return new ParserSession(this);
 }
 
 lint::ILintTestHooks *Factory::mkLintTestHooks() {

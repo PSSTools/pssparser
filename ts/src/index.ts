@@ -26,8 +26,10 @@ export {
   Parser,
   ParseException,
   createParser,
+  type InactiveRegion,
   type ParserOptions,
   type ProfileInfo,
+  type RefTargetStats,
   type RuleDiagnostic,
   type RuleFile,
   type RuleProbe,
@@ -111,4 +113,4 @@ export * as ast from './ast/generated/index.js';
  * unit without linking, or that is storing the wire format, has no other
  * route. This is the seam underneath the API, not a second one beside it.
  */
-export { deserialize, type AstNode } from './ast/generated/deserialize.js';
+export { deserialize, deserializeNodes, type AstNode } from './ast/generated/deserialize.js';

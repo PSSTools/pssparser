@@ -12,11 +12,8 @@
  */
 import {
   formatMarkers,
-  resolveMarker,
   sortMarkers,
   type Marker,
-  type RawMarker,
-  type CoreLibraryFile,
 } from './Marker.js';
 import {
   lintRequestJson,
@@ -34,8 +31,8 @@ import {
   type WaiverDiagnostic,
   type WaiverResult,
 } from './Lint.js';
-import { deserialize } from './ast/generated/deserialize.js';
-import { GlobalScope, RootSymbolScope } from './ast/generated/index.js';
+import { deserializeNodes } from './ast/generated/deserialize.js';
+import { GlobalScope, RootSymbolScope, ScopeChild, SymbolRefPath } from './ast/generated/index.js';
 import { initPssParser, type ParserSessionHandle, type InitOptions } from './wasm/loader.js';
 
 // `using` lowers to a Symbol.dispose lookup, and the well-known symbol is
@@ -192,6 +189,49 @@ let parserSeq = 0;
  */
 export type ProfileInfo = Readonly<Record<string, unknown>>;
 
+/**
+ * How the references of a linked tree resolved (`Parser.refTargetStats`).
+ *
+ * `inline_*` counts paths through a traversal's `with` block or initializer,
+ * which the core can only answer from what the linker recorded on the
+ * identifier. `decl_*` compare the two answers on every other path;
+ * `decl_generic` is the identifier naming a template (`list`) where the path
+ * names its specialization (`list<int>`). `path_unshipped` and
+ * `target_unshipped` count resolved paths the serialised tree does not
+ * contain at one end, which `targetOf()` therefore cannot return.
+ */
+export interface RefTargetStats {
+  readonly total: number;
+  readonly resolved: number;
+  readonly unresolved: number;
+  readonly inline_total: number;
+  readonly inline_resolved: number;
+  readonly decl_agree: number;
+  readonly decl_generic: number;
+  readonly decl_disagree: number;
+  readonly path_unshipped: number;
+  readonly target_unshipped: number;
+}
+
+/** A source region a `compile if` left out; see `Parser.inactiveRegions()`.
+ *  Both ends inclusive, 1-based. */
+export interface InactiveRegion {
+  fileid: number;
+  startLine: number;
+  startCol: number;
+  endLine: number;
+  endCol: number;
+}
+
+/** A fileid -> name JSON object from the session, as a Map. */
+function namesOf(json: string): Map<number, string> {
+  const names = new Map<number, string>();
+  for (const [id, name] of Object.entries(JSON.parse(json) as Record<string, string>)) {
+    names.set(Number(id), name);
+  }
+  return names;
+}
+
 export class Parser {
   #session: ParserSessionHandle | null;
   #label: string;
@@ -200,13 +240,10 @@ export class Parser {
   #collectComments: boolean;
 
   /**
-   * fileid -> source name for user files.
-   *
-   * Written as sources are parsed and read when markers are resolved. This is
-   * `_filenames` (`parser.py:32`); `#fileMap` below is the snapshot `link()`
-   * takes of it.
+   * fileid -> source name of the files the last `link()` took, read from the
+   * session then and kept, so `fileMap()` and `userUnits()` work after
+   * `dispose()`.
    */
-  #filenames = new Map<number, string>();
   #fileMap = new Map<number, string>();
 
   /**
@@ -221,9 +258,12 @@ export class Parser {
   /** The linked root, materialised by `link()`. */
   #root: RootSymbolScope | null = null;
 
-  /** The core library's files, for resolving its locations; see
-   *  `#coreLibrary()`. */
-  #stdlibFiles: readonly CoreLibraryFile[] | null = null;
+  /** Each resolved reference path of `#root`, and the node it names; built
+   *  with it. See `targetOf()`. */
+  #targets: Map<SymbolRefPath, ScopeChild> = new Map();
+
+  /** Counts behind `#targets`, from the core. */
+  #targetStats: RefTargetStats | null = null;
 
   /** Whether the last `link()` succeeded with no parse since: the rules ran
    *  (`lint()`'s unused-waiver report needs that). */
@@ -276,14 +316,7 @@ export class Parser {
     this.#linked = false;
 
     for (const file of files) {
-      // Record the name *before* parsing. The fileid is assigned by the
-      // session as the unit is created, and markers emitted during that parse
-      // already carry it -- resolving them needs the name to be in the map
-      // already.
-      const fileid = session.nextFileid();
-      this.#filenames.set(fileid, file.name);
-
-      if (session.parseSource(file.content)) {
+      if (session.parseSource(file.name, file.content)) {
         // Collect before reporting. A caught ParseException carries the
         // markers (parser.py:106-109), and `markers` is populated too.
         this.#absorbMarkers(session);
@@ -321,6 +354,7 @@ export class Parser {
    */
   clearMarkers(): void {
     this.#markers = [];
+    this.#session?.clearMarkers();
   }
 
   /** Whether doc comments are collected. Set at construction. */
@@ -621,22 +655,13 @@ export class Parser {
 
     const failed = session.link();
 
-    // (1) and (2): collect and re-sort whether or not the link failed.
-    // #absorbMarkers does both, and resolves fileids against the live map --
-    // which is why it must run before the snapshot-and-clear below, or every
-    // link marker would resolve against a map that no longer holds the ids.
+    // (1) and (2): the session collects and re-sorts whether or not the
+    // link failed.
     this.#absorbMarkers(session);
 
     // (3): record the result before reporting failure.
     this.#root = this.#materialiseRoot(session);
-
-    // Snapshot fileid -> name, then clear the live map. The clear is not
-    // tidiness: the next parse restarts the unit list, so fileid 1 will name a
-    // different file. #names() consults the live map first for exactly that
-    // reason, and the snapshot keeps older markers resolvable
-    // (`parser.py:_pathOf`).
-    this.#fileMap = new Map(this.#filenames);
-    this.#filenames.clear();
+    this.#fileMap = namesOf(session.fileMapJson());
 
     if (failed) {
       throw new ParseException(formatMarkers(this.#markers), this.#markers);
@@ -648,6 +673,28 @@ export class Parser {
   /** The linked root; null before `link()`. */
   get root(): RootSymbolScope | null {
     return this.#root;
+  }
+
+  /**
+   * The node a resolved reference names, or null.
+   *
+   * A reference's `target` (`TypeIdentifier.target`, `ExprRefPath.target`,
+   * `ExprRefName.target`) is a `SymbolRefPath`: index steps from the root, not
+   * a node. The core resolves each one when it ships the tree, so this is a
+   * lookup, and it answers exactly what the native linker would
+   * (`rust-binding.md` §1a). Null for a path that did not resolve, for null,
+   * and for a path from some other tree than the last `link()`'s.
+   *
+   * The node is an object of the same tree, so `targetOf(a) === targetOf(b)`
+   * asks whether two references name the same declaration.
+   */
+  targetOf(path: SymbolRefPath | null | undefined): ScopeChild | null {
+    return path ? (this.#targets.get(path) ?? null) : null;
+  }
+
+  /** How the last `link()`'s references resolved; null before `link()`. */
+  get refTargetStats(): RefTargetStats | null {
+    return this.#targetStats;
   }
 
   /**
@@ -665,6 +712,22 @@ export class Parser {
       return [];
     }
     return this.#root.units.filter((u) => this.#fileMap.has(u.fileid));
+  }
+
+  /**
+   * The source regions a `compile if` left out, in the user files.
+   *
+   * One region per branch that was not elaborated -- the `if` branch when
+   * the condition is false, the `else` branch when it is true, and both when
+   * the condition could not be evaluated (already an error). A region runs
+   * from the branch's first token to its last, inclusive; the `else` keyword
+   * is not part of it. A `compile if` inside a region is covered by it.
+   * 1-based, sorted by position. The core computes it
+   * (`IParserSession::inactiveRegions`), as for `Parser.inactive_regions()`
+   * in Python. Empty before `link()`.
+   */
+  inactiveRegions(): InactiveRegion[] {
+    return JSON.parse(this.#require().inactiveRegionsJson()) as InactiveRegion[];
   }
 
   /**
@@ -700,49 +763,24 @@ export class Parser {
   }
 
   /**
-   * Pull the session's markers into `#markers`, resolved and re-sorted.
-   *
-   * Re-sorting the whole list rather than the new markers is not redundant.
-   * Each collection is internally sorted, but concatenating two sorted lists
-   * does not produce a sorted list -- the bug `parser.py:182-184` records.
+   * Take the session's markers: every one since `clearMarkers()`, resolved
+   * to file names and sorted by the core (`IParserSession`).
    */
   #absorbMarkers(session: ParserSessionHandle): void {
-    const raw = JSON.parse(session.markersJson()) as RawMarker[];
-    const names = this.#names();
-    // Markers from this call replace nothing; they are appended to whatever
-    // earlier calls left, because `markers` spans the Parser's lifetime.
-    const stdlib = this.#coreLibrary(session);
-    for (const r of raw) {
-      this.#markers.push(resolveMarker(r, names, stdlib));
-    }
-    sortMarkers(this.#markers);
-  }
-
-  /** The core library's files, read once from the core; empty for a core
-   *  that predates `coreLibrarySourcesJson`. */
-  #coreLibrary(session: ParserSessionHandle): readonly CoreLibraryFile[] {
-    if (this.#stdlibFiles === null) {
-      const json = session.coreLibrarySourcesJson?.();
-      this.#stdlibFiles = json ? (JSON.parse(json) as CoreLibraryFile[]) : [];
-    }
-    return this.#stdlibFiles;
+    this.#markers = JSON.parse(session.markersJson()) as Marker[];
   }
 
   /**
-   * fileid -> name for resolving a marker, across the `link()` boundary.
-   *
-   * `link()` snapshots `#filenames` into `#fileMap` and clears it, and the
-   * next parse then reuses the same fileids for different files. So the live
-   * map must win where the two disagree, and the snapshot must still be
-   * consulted so a marker from before the link does not resolve to
-   * `<unknown>`. This is `_pathOf` (`parser.py:276-287`), which consults both
-   * in the same order and for the same reason.
+   * fileid -> name across the `link()` boundary: the last link's files, then
+   * the sources parsed since, which win where they reuse a fileid.
    */
   #names(): ReadonlyMap<number, string> {
-    if (this.#fileMap.size === 0) {
-      return this.#filenames;
+    const session = this.#require();
+    const names = namesOf(session.fileMapJson());
+    for (const [id, name] of namesOf(session.sourceNamesJson())) {
+      names.set(id, name);
     }
-    return new Map([...this.#fileMap, ...this.#filenames]);
+    return names;
   }
 
   /**
@@ -759,7 +797,20 @@ export class Parser {
    * detach it outright.
    */
   #materialiseRoot(session: ParserSessionHandle): RootSymbolScope {
-    const root = deserialize(new Uint8Array(session.serializeRoot()));
+    // Copy each view before the next call: either may move the heap.
+    const nodes = deserializeNodes(new Uint8Array(session.serializeRoot()));
+    const pairs = session.refTargets().slice();
+    this.#targets = new Map();
+    for (let i = 0; i + 1 < pairs.length; i += 2) {
+      const path = nodes[pairs[i]!];
+      const target = nodes[pairs[i + 1]!];
+      if (path instanceof SymbolRefPath && target instanceof ScopeChild) {
+        this.#targets.set(path, target);
+      }
+    }
+    this.#targetStats = JSON.parse(session.refTargetStatsJson()) as RefTargetStats;
+
+    const root = nodes.length === 0 ? null : nodes[0]!;
     if (!(root instanceof RootSymbolScope)) {
       // Not defensive padding: this would mean the linker returned something
       // other than a RootSymbolScope, or the wire format and the reader

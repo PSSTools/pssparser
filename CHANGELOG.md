@@ -10,6 +10,33 @@ The LRM revisions this pssparser supports are listed in `README.md`, in
 `pssparser.SUPPORTED_LRM`, and on the second line of `pssparser --version`.
 Currently: **PSS 3.1** (Public Review Draft, 2026-08-28).
 
+## Unreleased
+
+### Added
+
+- TypeScript: `Parser.targetOf(path)` returns the node a resolved reference names.
+  A reference's `target` is a `SymbolRefPath` (index steps from the root); the core
+  now resolves every one when it ships the linked tree, so `targetOf()` is a lookup
+  that gives the native linker's answer, including for references in a `with` block.
+  Two references naming the same declaration return the same object.
+  `Parser.refTargetStats` reports how the references resolved.
+  `deserializeNodes(bytes)` returns every decoded node in id order.
+- TypeScript: `Parser.inactiveRegions()`, the source regions a `compile if` left out,
+  as Python's `Parser.inactive_regions()` gives them.
+- C++: `pssp::IParserSession` (`IFactory::mkParserSession()`), the parse-and-link
+  lifecycle that the Python and TypeScript `Parser` now both wrap. It loads the core
+  library, keeps the file names, resolves and sorts markers, and turns an escaped C++
+  exception into a `PSSP000` marker.
+
+### Changed
+
+- Python: a marker at fileid -1 (a type the core synthesises) is reported in file
+  `<builtin>`, as in TypeScript, instead of `<unknown>`.
+- Python: `Parser.get_profile_info()` returns None after `link()`, as in TypeScript;
+  the builder that held the profile is released there.
+- TypeScript: an internal error during parsing or linking is reported as a `PSSP000`
+  marker instead of escaping as an exception.
+
 ## 3.5.0 — annotation values
 
 ### Added

@@ -85,6 +85,8 @@ public:
 
     virtual lint::ILintEngine *mkLintEngine() override;
 
+    virtual IParserSession *mkParserSession() override;
+
     virtual lint::ILintTestHooks *mkLintTestHooks() override;
 
     virtual const CoreLibrarySource *getCoreLibrarySources() override;

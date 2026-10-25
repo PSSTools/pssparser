@@ -82,12 +82,9 @@ export interface Marker {
 }
 
 /**
- * A marker as it crosses the WASM boundary.
- *
- * The difference from `Marker` is the whole of the C++/TypeScript split: the
- * core reports a `fileid`, and turning that into a path is bookkeeping over
- * values that needs no boundary crossing. See the header comment in
- * `wasm/bindings.cpp`.
+ * A marker as a lint result carries it: by `fileid`, not file name. Parse
+ * and link markers cross already resolved (`IParserSession`); a lint run's
+ * are resolved by `resolveMarker`.
  */
 export interface RawMarker {
   severity: MarkerSeverity;
@@ -209,9 +206,10 @@ export function resolveMarker(
  * marker stays first. `Array.prototype.sort` has been required to be stable
  * since ES2019, so this needs no help.
  *
- * The key is the resolved *file name*, not the fileid. That is why sorting
- * happens here rather than in C++: the fileid order and the path order are not
- * the same order, and `parser.py:352` sorts on the path.
+ * The key is the resolved *file name*, not the fileid: the fileid order and
+ * the path order are not the same order. Parse and link markers arrive sorted
+ * by the core (`IParserSession`), on the same key; this sorts the lint
+ * results, which are resolved here.
  *
  * Sorts in place and returns the same array.
  */

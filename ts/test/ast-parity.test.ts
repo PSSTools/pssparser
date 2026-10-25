@@ -75,7 +75,7 @@ describe('AST parity with the native parser', () => {
         s.beginParse();
         let failed = false;
         for (const f of c.files) {
-          if (s.parseSource(f.content)) {
+          if (s.parseSource(f.name, f.content)) {
             failed = true;
             break;
           }

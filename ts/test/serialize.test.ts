@@ -45,7 +45,7 @@ afterEach(() => {
 async function serializeOne(content: string): Promise<Uint8Array> {
   const s = await session();
   s.beginParse();
-  s.parseSource(content);
+  s.parseSource('t.pss', content);
   if (s.hasErrors()) {
     throw new Error(`fixture source did not parse: ${s.markersJson()}`);
   }
@@ -128,7 +128,7 @@ describe('serializeUnit / deserialize', () => {
     // a code path no user source does -- loadStandardLibrary, not parseSource.
     const s = await session();
     s.beginParse();
-    s.parseSource(MINIMAL);
+    s.parseSource('t.pss', MINIMAL);
     expect(s.unitCount()).toBe(2);
 
     const stdlib = deserialize(new Uint8Array(s.serializeUnit(0)));
@@ -147,7 +147,7 @@ describe('serializeUnit / deserialize', () => {
   it('rejects an out-of-range unit index', async () => {
     const s = await session();
     s.beginParse();
-    s.parseSource(MINIMAL);
+    s.parseSource('t.pss', MINIMAL);
     expect(() => s.serializeUnit(2)).toThrow();
     expect(() => s.serializeUnit(-1)).toThrow();
   });

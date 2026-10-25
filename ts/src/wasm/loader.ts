@@ -18,10 +18,14 @@ export interface ParserSessionHandle {
   setCollectComments(c: boolean): void;
   setEnableProfiling(e: boolean): void;
   beginParse(): void;
-  /** Returns true when the current parse call has produced an error marker. */
-  parseSource(content: string): boolean;
+  /** Parse one source, recording `name` for its fileid. Returns true when the
+   *  current parse call has produced an error marker. */
+  parseSource(name: string, content: string): boolean;
   nextFileid(): number;
+  /** Every marker since `clearMarkers()`, resolved to file names and sorted
+   *  by the core: a JSON array of `Marker`. */
   markersJson(): string;
+  clearMarkers(): void;
   hasErrors(): boolean;
   maxErrorsExceeded(): boolean;
   /** Units accepted so far, standard library included. */
@@ -44,9 +48,22 @@ export interface ParserSessionHandle {
   link(): boolean;
   /** Whether `link()` has run and left a root. */
   hasRoot(): boolean;
+  /** fileid -> name of the files the last `link()` took, as a JSON object. */
+  fileMapJson(): string;
+  /** fileid -> name of the sources parsed since the last `link()`, as JSON. */
+  sourceNamesJson(): string;
+  /** The regions a `compile if` left out, in the linked user files, as a
+   *  JSON array of `InactiveRegion`. */
+  inactiveRegionsJson(): string;
   /** The linked root, serialised. Same heap-view contract as
    *  `serializeUnit()`. Throws before `link()`. */
   serializeRoot(): Uint8Array;
+  /** The last `serializeRoot()`'s resolved references: flat
+   *  `(path id, target id)` pairs, sorted by path id, ids as in that buffer.
+   *  Same heap-view contract. */
+  refTargets(): Int32Array;
+  /** Counts behind `refTargets()`, as JSON. */
+  refTargetStatsJson(): string;
   /** Profiling data from the last parse as JSON, or `''` when there is none
    *  -- profiling off, no parse yet, or `link()` has dropped the builder. */
   profileInfoJson(): string;

@@ -68,6 +68,8 @@ cdef extern from "pssp/IFactory.h" namespace "pssp":
 
         ILintEngine *mkLintEngine()
 
+        IParserSession *mkParserSession()
+
         ILintTestHooks *mkLintTestHooks()
 
         const CoreLibrarySource *getCoreLibrarySources()
@@ -347,6 +349,68 @@ cdef extern from "pssp/IMarkerCollector.h" namespace "pssp":
         const cpp_vector[IMarkerUP] &markers() const
         void setMaxErrors(int32_t max)
         bool maxErrorsExceeded() const
+
+from libcpp.map cimport map as cpp_map
+
+cdef extern from "pssp/IParserSession.h" namespace "pssp":
+    cdef struct SessionLocation:
+        cpp_string      file
+        int32_t         line
+
+    cdef struct SessionMarkerRelation:
+        cpp_string      file
+        int32_t         line
+        int32_t         col
+        cpp_string      label
+
+    cdef struct SessionMarkerFix:
+        cpp_string      file
+        int32_t         line
+        int32_t         col
+        int32_t         extent
+        cpp_string      replacement
+
+    cdef cppclass SessionMarker:
+        MarkerSeverityE                         severity
+        cpp_string                              message
+        cpp_string                              code
+        int32_t                                 fileid
+        int32_t                                 raw_line
+        cpp_string                              file
+        int32_t                                 line
+        int32_t                                 col
+        int32_t                                 extent
+        cpp_vector[SessionMarkerRelation]       related
+        bool                                    has_fix
+        SessionMarkerFix                        fix
+
+    cdef cppclass IParserSession:
+        void setMaxErrors(int32_t n)
+        void setCollectDocstrings(bool c)
+        bool getCollectDocstrings() const
+        void setCollectComments(bool c)
+        bool getCollectComments() const
+        void setEnableProfiling(bool e)
+        void beginParse()
+        bool parseSource(const cpp_string &name, const cpp_string &text)
+        int32_t nextFileid() const
+        const cpp_vector[ast.IGlobalScopeP] &units() const
+        void releaseUnits()
+        bool link()
+        ast.IRootSymbolScope *root() const
+        ast.IRootSymbolScope *releaseRoot()
+        cpp_vector[ast.IGlobalScopeP] userUnits() const
+        const cpp_map[int32_t, cpp_string] &sourceNames() const
+        const cpp_map[int32_t, cpp_string] &fileMap() const
+        SessionLocation resolveLocation(int32_t fileid, int32_t line) const
+        const cpp_vector[SessionMarker] &markers() const
+        const cpp_vector[SessionMarker] &callMarkers() const
+        void clearMarkers()
+        bool hasErrors() const
+        bool maxErrorsExceeded() const
+        cpp_vector[ast.SourceRange] inactiveRegions() const
+        IParseProfileInfo *profileInfo()
+        ILintEngine *lintEngine()
 
 cdef extern from "pssp/ISymbolTableIterator.h" namespace "pssp":
     cdef cppclass ISymbolTableIterator:

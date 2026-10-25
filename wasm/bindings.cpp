@@ -17,28 +17,18 @@
  ****************************************************************************/
 
 /*
- * This is the C++ half of `ts-api-design.md` §3. It is deliberately *not* a
- * transliteration of `python/pssparser/parser.py`: that file's job is split in
- * two here, and the split is the design decision worth recording.
- *
- *   - Everything that must touch a C++ object lives here: the builder, the
- *     unit list, the marker collectors, the load-stdlib-once rule.
- *   - Everything that is bookkeeping over values lives in TypeScript:
- *     fileid -> name, marker sorting, error-message formatting, and the
- *     decision to throw.
- *
- * The line falls where it does because of `_pathOf` (parser.py:276-287).
- * Markers carry a fileid, and turning a fileid into a path is pure bookkeeping
- * that the TypeScript side can do without a boundary crossing -- and *must*
- * do, because the sort key is the resolved *name*, not the fileid
- * (parser.py:352). Sorting here would sort by the wrong key.
- *
- * So the marker JSON below carries `fileid`, never `file`. Resolution and
- * sorting happen in Marker.ts.
+ * This is the C++ half of `ts-api-design.md` §3: Embind over the core's
+ * parse-and-link session (pssp::IParserSession, core-in-leaf-plan.md CF1).
+ * The session keeps the lifecycle rules, resolves and sorts markers, and
+ * turns escaped exceptions into PSSP000 markers, for every binding alike.
+ * What is left here is the WASM-only part: serialising the tree for the
+ * TypeScript reader, and JSON for everything else that crosses.
  */
 
 #include <emscripten/bind.h>
 
+#include <algorithm>
+#include <map>
 #include <memory>
 #include <sstream>
 #include <string>
@@ -50,6 +40,7 @@
 #include "pssp/ILinker.h"
 #include "pssp/IMarkerCollector.h"
 #include "pssp/IParseProfileInfo.h"
+#include "pssp/IParserSession.h"
 #include "pssp/ast/FactoryExt.h"
 #include "pssp/ast/IFactory.h"
 #include "pssp/ast/IGlobalScope.h"
@@ -57,8 +48,23 @@
 #include "pssp/ast/IScopeChild.h"
 #include "pssp/lint/ILintEngine.h"
 #include "AstSerializer.h"
+#include "pssp/impl/TaskCollectRefTargets.h"
 
 namespace {
+
+/* Sort flat (key, value) int32 pairs by key, in place. */
+void sortPairs(std::vector<int32_t> &flat) {
+    std::vector<std::pair<int32_t, int32_t>> pairs;
+    pairs.reserve(flat.size() / 2);
+    for (size_t i = 0; i + 1 < flat.size(); i += 2) {
+        pairs.push_back({flat[i], flat[i + 1]});
+    }
+    std::sort(pairs.begin(), pairs.end());
+    for (size_t i = 0; i < pairs.size(); i++) {
+        flat[2 * i] = pairs[i].first;
+        flat[2 * i + 1] = pairs[i].second;
+    }
+}
 
 /****************************************************************************
  * JSON emission
@@ -110,18 +116,6 @@ const char *severityName(pssp::MarkerSeverityE s) {
     throw std::runtime_error("unrecognised MarkerSeverityE crossing the WASM boundary");
 }
 
-void emitLocation(std::ostream &os, const pssp::ast::Location &loc) {
-    // `linepos` is already 1-based (the invariant in ast/coretypes.yaml), so
-    // it passes through unchanged, as Parser._collectMarkers does. Adding 1
-    // here put every column one character late (known-issues TS-1).
-    // `extent` is passed through raw, including the -1 that Location.h
-    // defaults it to; the Python API does the same (core.pyx:371-373) and
-    // clamping here would invent information the core did not supply.
-    os << "\"fileid\":" << loc.fileid
-       << ",\"line\":" << loc.lineno
-       << ",\"col\":" << loc.linepos
-       << ",\"extent\":" << loc.extent;
-}
 
 /****************************************************************************
  * Profiling
@@ -227,188 +221,106 @@ std::string profileJson(pssp::IParseProfileInfo *info) {
  ****************************************************************************/
 class ParserSession {
 public:
-    ParserSession() : m_builder(0), m_max_errors(0),
-                      m_collect_docstrings(false), m_collect_comments(false) {
-        m_ast_factory = ast_getFactory();
-        m_factory = pssparser_getFactory();
+    ParserSession() {
+        pssp::IFactory *factory = pssparser_getFactory();
         // No debug manager. Every DEBUG_* macro in the core is null-guarded --
         // DEBUG_INIT stores `mgr ? mgr->findDebug(scope) : 0` and the rest test
         // m_dbg before dereferencing (dmgr/impl/DebugMacros.h) -- so passing
         // null disables tracing and costs nothing else. This is what lets the
         // WASM build skip debug_mgr, which ships as a prebuilt host .so with
         // no source to compile for wasm32.
-        m_factory->init(0, m_ast_factory);
+        factory->init(0, ast_getFactory());
+        m_session.reset(factory->mkParserSession());
     }
 
-    ~ParserSession() {
-        // Units the linker never took are ours to free. After link() the
-        // vector is empty, because ownership moved into the root
-        // (parser.py:211-217 records the same rule on the Python side).
-        for (pssp::ast::IGlobalScope *u : m_units) {
-            delete u;
-        }
-        delete m_root;
-        delete m_builder;
-    }
-
-    void setMaxErrors(int32_t n) { m_max_errors = n; }
+    void setMaxErrors(int32_t n) { m_session->setMaxErrors(n); }
+    void setCollectDocstrings(bool c) { m_session->setCollectDocstrings(c); }
+    void setCollectComments(bool c) { m_session->setCollectComments(c); }
+    void setEnableProfiling(bool e) { m_session->setEnableProfiling(e); }
+    void beginParse() { m_session->beginParse(); }
 
     /*
-     * Collection flags are stored, not applied. They are pushed into the
-     * builder by ensureBuilder() on every call rather than once at
-     * construction, because link() drops the builder and a session reused
-     * across a link boundary builds a fresh one that would otherwise come back
-     * with collection off (parser.py:74-81).
+     * Returns whether the call has produced an error *so far* -- the inverse
+     * of IParserSession::parseSource. Returning the flag rather than throwing
+     * lets the TypeScript side read the markers before reporting failure.
      */
-    void setCollectDocstrings(bool c) { m_collect_docstrings = c; }
-    void setCollectComments(bool c) { m_collect_comments = c; }
-    void setEnableProfiling(bool e) { m_enable_profiling = e; }
-
-    /*
-     * Open a parse call. One marker collector serves the whole call, matching
-     * `parses()` (parser.py:120), so markers accumulate across the sources in
-     * a single parseSources() and are reported together.
-     */
-    void beginParse() {
-        m_collector.reset(m_factory->mkMarkerCollector());
-        m_collector->setMaxErrors(m_max_errors);
-        pssp::IAstBuilder *builder = ensureBuilder();
-        // Set unconditionally rather than only when true. An earlier version
-        // set it only in the `if`, so enableProfiling(false) could never turn
-        // profiling back off once it had been on -- the builder outlives the
-        // parse call and kept the flag.
-        builder->setEnableProfile(m_enable_profiling);
-        loadStandardLibraryIfNeeded(builder);
+    bool parseSource(const std::string &name, const std::string &content) {
+        return !m_session->parseSource(name, content);
     }
 
+    int32_t nextFileid() const { return m_session->nextFileid(); }
+
     /*
-     * Build one source into a fresh GlobalScope and return whether the call
-     * has produced an error-severity marker *so far*.
-     *
-     * Returning the flag rather than throwing is deliberate. The caller has to
-     * collect markers before reporting failure (parser.py:106-109) -- a caught
-     * ParseException carries them -- and an exception thrown from here would
-     * cross the Embind boundary before the TypeScript side could do that.
-     * Reporting is TypeScript's job; this reports only the fact.
+     * Every marker since clearMarkers(), resolved and sorted by the core, as
+     * JSON in the shape of Marker.ts's `Marker`.
      */
-    bool parseSource(const std::string &content) {
-        if (!m_collector) {
-            throw std::runtime_error("parseSource() without beginParse()");
-        }
-        int32_t fileid = static_cast<int32_t>(m_units.size());
-        pssp::ast::IGlobalScope *unit = m_ast_factory->mkGlobalScope(fileid);
-
-        std::istringstream in(content);
-        m_builder->build(unit, &in);
-
-        if (m_collector->hasSeverity(pssp::MarkerSeverityE::Error)) {
-            // The failed unit does not join m_units: parser.py appends to
-            // self._files only after the error check (parser.py:111), so a unit
-            // that failed to parse is not part of the environment a later parse
-            // or a link sees, and does not consume its fileid.
-            //
-            // Freeing it here is safe, and that is worth stating explicitly
-            // because it was got wrong once. AstBuilderInt::build registers a
-            // unit in m_prior_units -- the borrowed-pointer list that
-            // resolvePathTargetInPriorUnits walks on every cross-unit lookup --
-            // but the push at AstBuilderInt.cpp:153 sits *inside* the
-            // `if (!m_marker_l->hasSeverity(Error))` guard at :142. A unit
-            // whose parse produced an error is therefore never registered, and
-            // nothing outlives this call holding a pointer to it.
-            //
-            // Phase 1 read that guard wrong and retired failed units instead of
-            // freeing them, on the theory that the builder still referenced
-            // them. It does not. Retiring them was not merely unnecessary: a
-            // language server re-parsing on each keystroke fails many times per
-            // second, and every failure would have leaked a GlobalScope for the
-            // life of the session.
-            //
-            // Checked, not reasoned: wasm/asan-probe.mjs runs this exact
-            // sequence -- fail a parse, churn the heap, then force a cross-unit
-            // resolve -- under an ASan build, and reports nothing. The same
-            // probe reports a heap-use-after-free within one round if a
-            // *successful* unit is freed, which is the case where the pointer
-            // really is registered.
-            delete unit;
-            return true;
-        }
-
-        m_units.push_back(unit);
-        return false;
-    }
-
-    /* The fileid the next parseSource() will assign. */
-    int32_t nextFileid() const { return static_cast<int32_t>(m_units.size()); }
-
-    /* Markers accumulated by the current collector, as JSON. */
     std::string markersJson() const {
         std::ostringstream os;
         os << '[';
-        if (m_collector) {
-            const std::vector<pssp::IMarkerUP> &markers = m_collector->markers();
-            for (size_t i = 0; i < markers.size(); i++) {
-                const pssp::IMarker *m = markers[i].get();
-                if (i) {
+        const std::vector<pssp::SessionMarker> &markers = m_session->markers();
+        for (size_t i = 0; i < markers.size(); i++) {
+            const pssp::SessionMarker &m = markers[i];
+            if (i) {
+                os << ',';
+            }
+            os << "{\"severity\":";
+            jsonEscape(os, severityName(m.severity));
+            os << ",\"message\":";
+            jsonEscape(os, m.message);
+            os << ",\"file\":";
+            jsonEscape(os, m.file);
+            // `extent` is passed through raw, including the -1 that
+            // Location.h defaults it to: clamping it would invent information
+            // the core did not supply.
+            os << ",\"line\":" << m.line
+               << ",\"col\":" << m.col
+               << ",\"extent\":" << m.extent;
+
+            os << ",\"related\":[";
+            for (size_t j = 0; j < m.related.size(); j++) {
+                const pssp::SessionMarkerRelation &r = m.related[j];
+                if (j) {
                     os << ',';
                 }
-                os << "{\"severity\":";
-                jsonEscape(os, severityName(m->severity()));
-                os << ",\"message\":";
-                jsonEscape(os, m->msg());
-                os << ',';
-                emitLocation(os, m->loc());
-
-                os << ",\"related\":[";
-                const std::vector<pssp::MarkerRelation> &rel = m->related();
-                for (size_t j = 0; j < rel.size(); j++) {
-                    if (j) {
-                        os << ',';
-                    }
-                    os << '{';
-                    emitLocation(os, rel[j].loc);
-                    os << ",\"label\":";
-                    jsonEscape(os, rel[j].label);
-                    os << '}';
-                }
-                os << ']';
-
-                // `code` is omitted rather than emitted empty when the core
-                // assigned none, so the TypeScript `Marker.code?` is absent
-                // rather than "". parser.py:343-344 does the same.
-                if (!m->id().empty()) {
-                    os << ",\"code\":";
-                    jsonEscape(os, m->id());
-                }
-
-                // The first machine-applicable repair, as parser.py emits it.
-                // Its span is its own (an insertion has extent 0), so it is a
-                // separate location rather than derived from the marker's.
-                const std::vector<pssp::MarkerFix> &fixes = m->fixes();
-                if (!fixes.empty()) {
-                    os << ",\"fix\":{";
-                    emitLocation(os, fixes[0].span);
-                    os << ",\"replacement\":";
-                    jsonEscape(os, fixes[0].replacement);
-                    os << '}';
-                }
+                os << "{\"file\":";
+                jsonEscape(os, r.file);
+                os << ",\"line\":" << r.line << ",\"col\":" << r.col
+                   << ",\"label\":";
+                jsonEscape(os, r.label);
                 os << '}';
             }
+            os << ']';
+
+            // `code` is omitted rather than emitted empty when the core
+            // assigned none, so the TypeScript `Marker.code?` is absent.
+            if (!m.code.empty()) {
+                os << ",\"code\":";
+                jsonEscape(os, m.code);
+            }
+            if (m.has_fix) {
+                os << ",\"fix\":{\"file\":";
+                jsonEscape(os, m.fix.file);
+                os << ",\"line\":" << m.fix.line << ",\"col\":" << m.fix.col
+                   << ",\"extent\":" << m.fix.extent << ",\"replacement\":";
+                jsonEscape(os, m.fix.replacement);
+                os << '}';
+            }
+            os << '}';
         }
         os << ']';
         return os.str();
     }
 
-    bool hasErrors() const {
-        return m_collector &&
-               m_collector->hasSeverity(pssp::MarkerSeverityE::Error);
-    }
+    void clearMarkers() { m_session->clearMarkers(); }
 
-    bool maxErrorsExceeded() const {
-        return m_collector && m_collector->maxErrorsExceeded();
-    }
+    bool hasErrors() const { return m_session->hasErrors(); }
+
+    bool maxErrorsExceeded() const { return m_session->maxErrorsExceeded(); }
 
     /* Units accepted so far, standard library included. */
-    int32_t unitCount() const { return static_cast<int32_t>(m_units.size()); }
+    int32_t unitCount() const {
+        return static_cast<int32_t>(m_session->units().size());
+    }
 
     /*
      * Serialise one unit and expose the bytes as a view over the WASM heap.
@@ -425,59 +337,57 @@ public:
      * replaces the underlying ArrayBuffer. Parser.ts copies immediately.
      */
     emscripten::val serializeUnit(int32_t idx) {
-        if (idx < 0 || static_cast<size_t>(idx) >= m_units.size()) {
+        const std::vector<pssp::ast::IGlobalScope *> &units = m_session->units();
+        if (idx < 0 || static_cast<size_t>(idx) >= units.size()) {
             throw std::runtime_error("serializeUnit(): unit index out of range");
         }
-        m_buf = pssp::ast::serializeAst(m_units[idx]);
+        m_buf = pssp::ast::serializeAst(units[idx]);
         return emscripten::val(emscripten::typed_memory_view(
             m_buf.size(), reinterpret_cast<const uint8_t *>(m_buf.data())));
     }
 
-    /*
-     * Link every unit parsed so far. Returns whether the link produced an
-     * error-severity marker; as with parseSource(), reporting is TypeScript's
-     * job and this reports only the fact.
-     *
-     * Four things here are load-bearing, and each is a bug parser.py records:
-     *
-     *  - A *fresh* marker collector, as link() is its own reporting unit
-     *    (parser.py:167-169). The TypeScript side appends what markersJson()
-     *    returns to the parse-time markers and re-sorts the concatenation.
-     *  - The root is recorded whether or not the link succeeded. AstLinker has
-     *    one return and no early exit -- errors go to the marker listener,
-     *    never a null return -- and ownership of the units has already moved
-     *    into it, so a failed link must still leave them reachable
-     *    (parser.py:186-217).
-     *  - m_units is cleared rather than freed. `link(..., own_scopes=true)`
-     *    hands ownership to the root; leaving the pointers in m_units would
-     *    make ~ParserSession a second owner.
-     *  - The builder is dropped. It holds the units as borrowed pointers --
-     *    its compile-time environment (PSS 3.1 19.1.2) -- and ownership has
-     *    just moved away. A later link() replaces the root and frees those
-     *    units; a parse after that would read freed memory
-     *    (parser.py:224-231). beginParse() builds a fresh one, which is why
-     *    the collection flags are re-applied there rather than at
-     *    construction.
-     */
-    bool link() {
-        m_collector.reset(m_factory->mkMarkerCollector());
-        m_collector->setMaxErrors(m_max_errors);
+    /* Returns whether the link produced an error-severity marker. */
+    bool link() { return !m_session->link(); }
 
-        pssp::ILinkerUP linker(m_factory->mkAstLinker());
-        pssp::ast::IRootSymbolScope *root =
-            linker->link(m_collector.get(), m_units);
+    bool hasRoot() const { return m_session->root() != 0; }
 
-        delete m_root;
-        m_root = root;
-        m_units.clear();
+    /* fileid -> name of the files the last link() took, as a JSON object. */
+    std::string fileMapJson() const { return namesJson(m_session->fileMap()); }
 
-        delete m_builder;
-        m_builder = 0;
+    /* fileid -> name of the sources parsed since the last link(), as JSON. */
+    std::string sourceNamesJson() const { return namesJson(m_session->sourceNames()); }
 
-        return m_collector->hasSeverity(pssp::MarkerSeverityE::Error);
+    static std::string namesJson(const std::map<int32_t, std::string> &names) {
+        std::ostringstream os;
+        os << '{';
+        bool first = true;
+        for (const std::pair<const int32_t, std::string> &e : names) {
+            os << (first ? "" : ",") << '"' << e.first << "\":";
+            jsonEscape(os, e.second);
+            first = false;
+        }
+        os << '}';
+        return os.str();
     }
 
-    bool hasRoot() const { return m_root != 0; }
+    /* IParserSession::inactiveRegions(), as a JSON array of
+     * {fileid, startLine, startCol, endLine, endCol}. */
+    std::string inactiveRegionsJson() const {
+        std::ostringstream os;
+        os << '[';
+        const std::vector<pssp::ast::SourceRange> regions = m_session->inactiveRegions();
+        for (size_t i = 0; i < regions.size(); i++) {
+            const pssp::ast::SourceRange &r = regions[i];
+            os << (i ? "," : "")
+               << "{\"fileid\":" << r.fileid
+               << ",\"startLine\":" << r.start_line
+               << ",\"startCol\":" << r.start_col
+               << ",\"endLine\":" << r.end_line
+               << ",\"endCol\":" << r.end_col << '}';
+        }
+        os << ']';
+        return os.str();
+    }
 
     /*
      * Serialise the linked root. Same view-not-copy contract as
@@ -486,34 +396,75 @@ public:
      * The units come with it: RootSymbolScope holds them as
      * `list<UP<GlobalScope>>`, and the serialiser descends through owning
      * pointers, so one buffer carries the whole linked program.
+     *
+     * Also builds the resolved-reference table refTargets() returns. It has to
+     * be built here: it is keyed by the ids this serialisation assigns, and
+     * the indexer that holds them is gone once the buffer is taken.
      */
     emscripten::val serializeRoot() {
-        if (!m_root) {
+        pssp::ast::IRootSymbolScope *root = m_session->root();
+        if (!root) {
             throw std::runtime_error("serializeRoot(): no root; link() first");
         }
-        m_buf = pssp::ast::serializeAst(m_root);
+        pssp::ast::IVisitor *indexer = pssp::ast::mkAstIndexer();
+        root->accept(indexer);
+        pssp::ast::IVisitor *writer = pssp::ast::mkAstWriter(indexer);
+        root->accept(writer);
+
+        pssp::TaskCollectRefTargets refs(root);
+        const std::vector<pssp::RefTarget> &targets = refs.collect();
+        m_refTargets.clear();
+        m_refTargets.reserve(2 * targets.size());
+        int32_t path_unshipped = 0, target_unshipped = 0;
+        for (std::vector<pssp::RefTarget>::const_iterator
+                it=targets.begin(); it!=targets.end(); it++) {
+            int32_t path_id = pssp::ast::astIdOf(indexer, it->path);
+            int32_t target_id = pssp::ast::astIdOf(indexer, it->target);
+            if (path_id < 0 || target_id < 0) {
+                // Nothing on the other side could name it. A path outside the
+                // serialised graph is one the visitor reached through a
+                // non-owning edge (template parameter declarations); a target
+                // outside it would be a node the tree does not own.
+                (path_id < 0) ? path_unshipped++ : target_unshipped++;
+                continue;
+            }
+            m_refTargets.push_back(path_id);
+            m_refTargets.push_back(target_id);
+        }
+        sortPairs(m_refTargets);
+        std::string stats = refs.stats().toJson();
+        stats.insert(stats.size() - 1,
+            ",\"path_unshipped\":" + std::to_string(path_unshipped)
+            + ",\"target_unshipped\":" + std::to_string(target_unshipped));
+        m_refTargetStats = stats;
+
+        m_buf = pssp::ast::takeAstBuffer(indexer, writer);
         return emscripten::val(emscripten::typed_memory_view(
             m_buf.size(), reinterpret_cast<const uint8_t *>(m_buf.data())));
     }
 
     /*
-     * Profiling data from the last parse as JSON, or "" if there is none.
-     *
-     * "" rather than "null" so the TypeScript side has one cheap test and
-     * never parses a document to discover it is empty.
-     *
-     * There is none after link(), because link() drops the builder that holds
-     * it. This is a deliberate divergence: parser.py keeps a `_last_builder`
-     * reference and would hand back the profile of a builder it has just
-     * released everywhere else.
+     * The resolved references of the last serializeRoot(), as flat
+     * (path id, target id) pairs sorted by path id: for each SymbolRefPath in
+     * the buffer, the node TaskResolveSymbolPathRef resolves it to
+     * (docs/design/rust-binding.md §1a). A path with no entry did not
+     * resolve. Same view-not-copy contract as serializeRoot().
+     */
+    emscripten::val refTargets() const {
+        return emscripten::val(emscripten::typed_memory_view(
+            m_refTargets.size(), m_refTargets.data()));
+    }
+
+    /* Counts from the last serializeRoot()'s reference table, as JSON. */
+    std::string refTargetStatsJson() const { return m_refTargetStats; }
+
+    /*
+     * Profiling data from the last parse as JSON, or "" if there is none --
+     * "" rather than "null" so the TypeScript side has one cheap test. There
+     * is none after link(), which drops the builder that holds it.
      */
     std::string profileInfoJson() {
-        if (!m_builder) {
-            return "";
-        }
-        // getProfileInfo() news up a ParseProfileInfo from the snapshot on
-        // every call (AstBuilder.cpp:92-95), so the caller owns it.
-        pssp::IParseProfileInfoUP info(m_builder->getProfileInfo());
+        pssp::IParseProfileInfoUP info(m_session->profileInfo());
         if (!info) {
             return "";
         }
@@ -526,7 +477,7 @@ public:
      * so rules loaded once (C4.3) serve every later runLint (C5.4).
      */
     std::string lintEngineInfoJson() {
-        pssp::lint::ILintEngine *e = ensureLintEngine();
+        pssp::lint::ILintEngine *e = m_session->lintEngine();
         std::ostringstream out;
         out << "{\"rule_format_version\":" << e->ruleFormatVersion()
             << ",\"rule_sets\":" << e->numRuleSets() << "}";
@@ -542,7 +493,7 @@ public:
         pssp::lint::LintSource src;
         src.name = name;
         src.text = text;
-        return ensureLintEngine()->loadRules(src, false) != nullptr;
+        return m_session->lintEngine()->loadRules(src, false) != nullptr;
     }
 
     /*
@@ -550,7 +501,7 @@ public:
      * "rule-file", "empty", "not-yaml", "not-mapping" or "no-key".
      */
     std::string probeRules(const std::string &text) {
-        switch (ensureLintEngine()->probeRules(text)) {
+        switch (m_session->lintEngine()->probeRules(text)) {
         case pssp::lint::RuleProbe::RuleFile:   return "rule-file";
         case pssp::lint::RuleProbe::Empty:      return "empty";
         case pssp::lint::RuleProbe::NotYaml:    return "not-yaml";
@@ -562,74 +513,61 @@ public:
 
     /* Every rule-file diagnostic of the session, built-in files included. */
     std::string ruleDiagnosticsJson() {
-        return ensureLintEngine()->diagnosticsJson();
+        return m_session->lintEngine()->diagnosticsJson();
     }
 
     /* Every rule loaded in the session, built-in rules first. */
     std::string rulesJson() {
-        return ensureLintEngine()->rulesJson();
+        return m_session->lintEngine()->rulesJson();
     }
 
     /*
-     * Runs the session's rules over the linked model's user files (every
-     * unit but the standard library, fileid 0) (lint-core-plan.md C5.4).
-     * The request and result are ILintEngine::run()'s JSON; markers carry
-     * fileids, as markersJson()'s do. Before link() there is no model, and
-     * the result has no markers.
+     * Runs the session's rules over the linked model's user files
+     * (lint-core-plan.md C5.4). The request and result are ILintEngine::run()'s
+     * JSON; markers carry fileids. Before link() there is no model, and the
+     * result has no markers.
      */
     std::string runLint(const std::string &requestJson) {
-        return ensureLintEngine()->run(userRoots(), requestJson, m_root);
+        return m_session->lintEngine()->run(userRoots(), requestJson, m_session->root());
     }
 
     /*
      * Collects the source waivers (lint-core-plan.md C7.2): comments in the
      * request's texts, annotations in the linked model's user files.
-     * ILintEngine::collectWaivers()'s JSON; before link() there are no
-     * annotations to read.
      */
     std::string collectWaivers(const std::string &requestJson) {
-        return ensureLintEngine()->collectWaivers(userRoots(), requestJson);
+        return m_session->lintEngine()->collectWaivers(userRoots(), requestJson);
     }
 
     /* Applies waivers to diagnostics: ILintEngine::applyWaivers()'s JSON (C7.2). */
     std::string applyWaivers(const std::string &requestJson) {
-        return ensureLintEngine()->applyWaivers(requestJson);
+        return m_session->lintEngine()->applyWaivers(requestJson);
     }
 
-    /*
-     * Finishes diagnostics as the CLI does before printing them
-     * (lint-core-plan.md C7.4): ILintEngine::finish()'s JSON.
-     */
+    /* Finishes diagnostics as the CLI does before printing them (C7.4). */
     std::string finishDiagnostics(const std::string &requestJson) {
-        return ensureLintEngine()->finish(requestJson);
+        return m_session->lintEngine()->finish(requestJson);
     }
 
-    /*
-     * The host's own markers for selection (lint-core-plan.md C7.1):
-     * ILintEngine::setHostMarkers()'s JSON. Returns the problems.
-     */
+    /* The host's own markers for selection (C7.1). Returns the problems. */
     std::string setHostMarkers(const std::string &json) {
-        return ensureLintEngine()->setHostMarkers(json);
+        return m_session->lintEngine()->setHostMarkers(json);
     }
 
-    /*
-     * The marker catalogue (lint-core-plan.md C7.3): ILintEngine::catalogJson(),
-     * for hover, `codeDescription` and quick-info.
-     */
+    /* The marker catalogue (C7.3), for hover, `codeDescription` and quick-info. */
     std::string catalogJson() {
-        return ensureLintEngine()->catalogJson();
+        return m_session->lintEngine()->catalogJson();
     }
 
     /*
      * The core library's files, as IFactory::getCoreLibrarySources(): a JSON
      * array of {name, firstLine, numLines, text}. The library is unit 0, and
-     * each file has its own band of that unit's lines; Marker.ts maps a
-     * (0, line) location back to `<stdlib>/<name>` and the line in the file.
+     * each file has its own band of that unit's lines.
      */
     std::string coreLibrarySourcesJson() {
         std::ostringstream os;
         os << "[";
-        const pssp::CoreLibrarySource *f = m_factory->getCoreLibrarySources();
+        const pssp::CoreLibrarySource *f = pssparser_getFactory()->getCoreLibrarySources();
         for (int32_t i=0; f[i].name; i++) {
             os << ((i)?",":"") << "{\"name\":";
             jsonEscape(os, f[i].name);
@@ -645,95 +583,25 @@ public:
 
     /* Resolves a rule selection: ILintEngine::resolveSelection()'s JSON (C7.1). */
     std::string resolveSelection(const std::string &json) {
-        return ensureLintEngine()->resolveSelection(json);
+        return m_session->lintEngine()->resolveSelection(json);
     }
 
 private:
-    /*
-     * The user's files only, as Parser.user_units() natively: the standard
-     * library is fileid 0, and the built-in units the linker adds are -1
-     * (lint-core-plan.md C5.5 found them walked here).
-     */
+    /* The user files' units, as the lint engine's roots. */
     std::vector<pssp::ast::IScopeChild *> userRoots() {
         std::vector<pssp::ast::IScopeChild *> roots;
-        if (m_root) {
-            for (const pssp::ast::IGlobalScopeUP &u : m_root->getUnits()) {
-                if (u->getFileid() > 0) {
-                    roots.push_back(dynamic_cast<pssp::ast::IScopeChild *>(u.get()));
-                }
-            }
+        for (pssp::ast::IGlobalScope *u : m_session->userUnits()) {
+            roots.push_back(dynamic_cast<pssp::ast::IScopeChild *>(u));
         }
         return roots;
     }
 
-    /*
-     * The engine is created on first use, with the built-in rules loaded
-     * first (format §6.2: built-in, then site files, in order).
-     */
-    pssp::lint::ILintEngine *ensureLintEngine() {
-        if (!m_lint) {
-            m_lint.reset(m_factory->mkLintEngine());
-            m_lint->loadBuiltinRules();
-        }
-        return m_lint.get();
-    }
-
-    /*
-     * One builder per session, created once and reused.
-     *
-     * Not an optimisation. The builder accumulates the units it has processed:
-     * compile-time expressions are evaluated during AST construction and may
-     * reference types and constants declared by a previously-processed unit
-     * (PSS 3.1 19.1.2). A builder per parse call would restart that
-     * environment, so a second call could not see the first call's constants.
-     * Each call still gets a fresh marker collector, because markers are
-     * reported per call. (parser.py:59-82.)
-     */
-    pssp::IAstBuilder *ensureBuilder() {
-        if (!m_builder) {
-            m_builder = m_factory->mkAstBuilder(m_collector.get());
-        } else {
-            m_builder->setMarkerListener(m_collector.get());
-        }
-        // Docstrings first: setCollectComments(true) turns docstring
-        // collection on as a side effect, and the reverse order would undo it.
-        m_builder->setCollectDocStrings(m_collect_docstrings);
-        m_builder->setCollectComments(m_collect_comments);
-        return m_builder;
-    }
-
-    /*
-     * The standard library is unit 0, loaded lazily on first parse.
-     *
-     * A caller never asks for this and must never have to: both Python parse
-     * paths open with `if len(self._files) == 0:` and load the stdlib before
-     * touching user input (parser.py:93-97, 127-131). Which is why user
-     * fileids start at 1 -- see ts-api-design.md §3.2.6.
-     */
-    void loadStandardLibraryIfNeeded(pssp::IAstBuilder *builder) {
-        if (!m_units.empty()) {
-            return;
-        }
-        pssp::ast::IGlobalScope *stdlib = m_ast_factory->mkGlobalScope(0);
-        m_factory->loadStandardLibrary(builder, stdlib);
-        m_units.push_back(stdlib);
-    }
-
 private:
-    pssp::ast::IFactory                 *m_ast_factory;
-    pssp::IFactory                      *m_factory;
-    pssp::IAstBuilder                   *m_builder;
-    pssp::IMarkerCollectorUP            m_collector;
-    std::vector<pssp::ast::IGlobalScope *> m_units;
-    /** The linked root, owned here and owning the units after link(). */
-    pssp::ast::IRootSymbolScope         *m_root = 0;
-    pssp::lint::ILintEngineUP           m_lint;
-    /** Backing store for the view returned by serializeUnit(). */
+    pssp::IParserSessionUP              m_session;
+    /** Backing store for the views serializeUnit()/serializeRoot() return. */
     std::string                         m_buf;
-    int32_t                             m_max_errors;
-    bool                                m_collect_docstrings;
-    bool                                m_collect_comments;
-    bool                                m_enable_profiling = false;
+    std::vector<int32_t>                m_refTargets;
+    std::string                         m_refTargetStats;
 };
 
 /****************************************************************************
@@ -835,13 +703,19 @@ EMSCRIPTEN_BINDINGS(pssparser) {
         .function("parseSource", &ParserSession::parseSource)
         .function("nextFileid", &ParserSession::nextFileid)
         .function("markersJson", &ParserSession::markersJson)
+        .function("clearMarkers", &ParserSession::clearMarkers)
         .function("hasErrors", &ParserSession::hasErrors)
         .function("maxErrorsExceeded", &ParserSession::maxErrorsExceeded)
         .function("unitCount", &ParserSession::unitCount)
         .function("serializeUnit", &ParserSession::serializeUnit)
         .function("link", &ParserSession::link)
         .function("hasRoot", &ParserSession::hasRoot)
+        .function("fileMapJson", &ParserSession::fileMapJson)
+        .function("sourceNamesJson", &ParserSession::sourceNamesJson)
+        .function("inactiveRegionsJson", &ParserSession::inactiveRegionsJson)
         .function("serializeRoot", &ParserSession::serializeRoot)
+        .function("refTargets", &ParserSession::refTargets)
+        .function("refTargetStatsJson", &ParserSession::refTargetStatsJson)
         .function("profileInfoJson", &ParserSession::profileInfoJson)
         .function("lintEngineInfoJson", &ParserSession::lintEngineInfoJson)
         .function("loadRuleFile", &ParserSession::loadRuleFile)

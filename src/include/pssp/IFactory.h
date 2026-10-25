@@ -33,6 +33,7 @@
 #include "pssp/ISymbolTable.h"
 #include "pssp/ITaskFindElementByLocation.h"
 #include "pssp/IOccurrenceCollector.h"
+#include "pssp/IParserSession.h"
 #include "pssp/IValFactory.h"
 #include "pssp/lint/ILintEngine.h"
 #include "pssp/lint/ILintTestHooks.h"
@@ -125,6 +126,12 @@ public:
      * owns the returned object.
      */
     virtual lint::ILintEngine *mkLintEngine() = 0;
+
+    /**
+     * A parse-and-link session (IParserSession): the lifecycle every binding
+     * wraps. The caller owns the returned object.
+     */
+    virtual IParserSession *mkParserSession() = 0;
 
     /**
      * PRIVATE: test entry points into the lint engine's internals

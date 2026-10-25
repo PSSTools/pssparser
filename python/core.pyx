@@ -15,6 +15,7 @@ from libc.stdint cimport int32_t
 from libc.stdint cimport uint32_t
 from libcpp.vector cimport vector as std_vector
 from libcpp.string cimport string as cpp_string
+from libcpp.map cimport map as cpp_map
 from libcpp.cast cimport dynamic_cast
 
 # Import the C++ resolveSymbolPathRef function
@@ -102,6 +103,10 @@ cdef class Factory(object):
     def mkLintEngine(self):
         """A lint engine with no rules loaded (lint-core-plan.md)."""
         return LintEngine.mk(self._hndl.mkLintEngine())
+
+    def mkParserSession(self):
+        """A parse-and-link session (pssp::IParserSession)."""
+        return ParserSession.mk(self._hndl.mkParserSession())
 
     def getCoreLibrarySources(self):
         """The compiled-in core library's files, in the order they are built
@@ -1418,3 +1423,172 @@ cdef class LintTestHooks(object):
         else:
             raise ValueError("unknown lint test hook %r" % fn)
         return out.decode("utf-8", "surrogateescape")
+
+
+_SESSION_SEVERITY = {
+    <int>decl.Severity_Error: "error",
+    <int>decl.Severity_Warn: "warning",
+    <int>decl.Severity_Info: "info",
+    <int>decl.Severity_Hint: "hint",
+}
+
+
+cdef dict _sessionMarker(const decl.SessionMarker *m):
+    """A resolved marker as the dict `Parser.markers` documents."""
+    cdef size_t i
+    entry = {
+        "severity": _SESSION_SEVERITY.get(<int>m.severity, "unknown"),
+        "message": m.message.decode(),
+        "file": m.file.decode(),
+        "line": m.line,
+        "col": m.col,
+        "extent": m.extent,
+        "related": [
+            {"file": m.related[i].file.decode(),
+             "line": m.related[i].line,
+             "col": m.related[i].col,
+             "label": m.related[i].label.decode()}
+            for i in range(m.related.size())],
+    }
+    if m.code.size():
+        entry["code"] = m.code.decode()
+    if m.has_fix:
+        entry["fix"] = {
+            "file": m.fix.file.decode(),
+            "line": m.fix.line,
+            "col": m.fix.col,
+            "extent": m.fix.extent,
+            "replacement": m.fix.replacement.decode(),
+        }
+    return entry
+
+
+cdef class ParserSession(object):
+    """The C++ parse-and-link session (pssp::IParserSession). `Parser` wraps
+    it; see core-in-leaf-plan.md CF1."""
+    cdef decl.IParserSession *_hndl
+    #: Owning wrappers of the units accepted since the last link(). The
+    #: wrappers own the units, not the session (releaseUnits()), so a caller
+    #: may hand `units()` to its own Linker -- which takes them -- as before
+    #: the session existed. link() gives them to the root.
+    cdef list _units
+
+    def __cinit__(self):
+        self._units = []
+
+    def __dealloc__(self):
+        # The session first: it borrows the units, the wrappers own them.
+        if self._hndl != NULL:
+            del self._hndl
+
+    @staticmethod
+    cdef ParserSession mk(decl.IParserSession *hndl):
+        ret = ParserSession()
+        ret._hndl = hndl
+        return ret
+
+    cdef void _takeUnits(self):
+        cdef const std_vector[ast_decl.IGlobalScopeP] *u = &self._hndl.units()
+        cdef size_t i
+        for i in range(len(self._units), u.size()):
+            self._units.append(ast.GlobalScope.mk(u[0][i], True))
+        self._hndl.releaseUnits()
+
+    def setMaxErrors(self, int32_t n):
+        self._hndl.setMaxErrors(n)
+
+    def setCollectDocstrings(self, bool c):
+        self._hndl.setCollectDocstrings(c)
+
+    def setCollectComments(self, bool c):
+        self._hndl.setCollectComments(c)
+
+    def setEnableProfiling(self, bool e):
+        self._hndl.setEnableProfiling(e)
+
+    def beginParse(self):
+        self._hndl.beginParse()
+        self._takeUnits()
+
+    def parseSource(self, str name, str text):
+        """False when the call has produced an error so far."""
+        ok = self._hndl.parseSource(name.encode(), text.encode())
+        self._takeUnits()
+        return ok
+
+    def nextFileid(self):
+        return self._hndl.nextFileid()
+
+    def units(self):
+        """The units accepted since the last link(), core library first. The
+        wrappers own them until a link takes them."""
+        return list(self._units)
+
+    def link(self):
+        """False when the link produced an error. The root takes the units."""
+        cdef ast.GlobalScope w
+        for o in self._units:
+            w = <ast.GlobalScope>o
+            w._owned = False
+        self._units = []
+        return self._hndl.link()
+
+    def releaseRoot(self):
+        """The last link()'s root, owned by the returned wrapper; None if
+        there is none. The session keeps it as a borrowed pointer, so the
+        wrapper must outlive the session's use of it."""
+        cdef ast_decl.IRootSymbolScope *r = self._hndl.releaseRoot()
+        if r == NULL:
+            return None
+        return ast.RootSymbolScope.mk(r, True)
+
+    def userUnits(self):
+        cdef std_vector[ast_decl.IGlobalScopeP] u = self._hndl.userUnits()
+        cdef size_t i
+        return [ast.GlobalScope.mk(u[i], False) for i in range(u.size())]
+
+    def sourceNames(self):
+        cdef cpp_map[int32_t, cpp_string] fm = self._hndl.sourceNames()
+        return {k: v.decode() for k, v in fm}
+
+    def fileMap(self):
+        cdef cpp_map[int32_t, cpp_string] fm = self._hndl.fileMap()
+        return {k: v.decode() for k, v in fm}
+
+    def resolveLocation(self, int32_t fileid, int32_t line):
+        cdef decl.SessionLocation loc = self._hndl.resolveLocation(fileid, line)
+        return (loc.file.decode(), loc.line)
+
+    def markers(self):
+        """Every marker since clearMarkers(), resolved and sorted."""
+        cdef const std_vector[decl.SessionMarker] *m = &self._hndl.markers()
+        cdef size_t i
+        return [_sessionMarker(&m[0][i]) for i in range(m.size())]
+
+    def callMarkers(self):
+        """The last parse or link call's markers, resolved and sorted."""
+        cdef const std_vector[decl.SessionMarker] *m = &self._hndl.callMarkers()
+        cdef size_t i
+        return [_sessionMarker(&m[0][i]) for i in range(m.size())]
+
+    def clearMarkers(self):
+        self._hndl.clearMarkers()
+
+    def hasErrors(self):
+        return self._hndl.hasErrors()
+
+    def maxErrorsExceeded(self):
+        return self._hndl.maxErrorsExceeded()
+
+    def inactiveRegions(self):
+        """(fileid, start_line, start_col, end_line, end_col) per region."""
+        cdef std_vector[ast_decl.SourceRange] r = self._hndl.inactiveRegions()
+        cdef size_t i
+        return [(r[i].fileid, r[i].start_line, r[i].start_col,
+                 r[i].end_line, r[i].end_col) for i in range(r.size())]
+
+    def profileInfo(self):
+        cdef decl.IParseProfileInfo *info = self._hndl.profileInfo()
+        if info == NULL:
+            return None
+        return ParseProfileInfo.mk(info, True)
