@@ -106,8 +106,11 @@ jobs:
       # happened on 2026-08-31 when conformance.yml landed beside this file,
       # and it is the same failure that made four edapack repos red for a day
       # in wave 3a.
+      #
+      # The host name is matched as a whole word: bare, it is five hex digits,
+      # and a SHA-256 in a test fixture contained it (v3.5.0, 2026-10-21).
       run: |
-        pattern='perch-char\.ts\.net|\.ts\.net|a9550|100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\.[0-9]+\.[0-9]+'
+        pattern='perch-char\.ts\.net|\.ts\.net|(^|[^0-9A-Za-z])a9550([^0-9A-Za-z]|$)|100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\.[0-9]+\.[0-9]+'
         if git grep -nIE "$pattern" -- . ':!.forgejo/workflows/' ; then
           echo "::error::internal identifier found in a tracked file (see matches above)"
           exit 1

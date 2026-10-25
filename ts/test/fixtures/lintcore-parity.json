@@ -601,8 +601,8 @@
     null
    ],
    "file": ".forgejo/workflows/ci.yml",
-   "sha256": "8b5f10ca0608336ffb2f3f3124599e1742f4e3877e74b66dc7f17aa11604007b",
-   "len": 27385
+   "sha256": "e0c1dfaf6dfa21eaa7c5aeade3393c5d939bd395dc558ba1522268cb1fa55abc",
+   "len": 27420
   },
   {
    "id": "yaml-map:.forgejo/workflows/ci.yml",
@@ -612,8 +612,8 @@
     null
    ],
    "file": ".forgejo/workflows/ci.yml",
-   "sha256": "b0586efed43b82c2f0ad0701ee8ae424c7ff075da257abb83dd425b36b52825c",
-   "len": 81460
+   "sha256": "54207ce6263a62c773a89c3d5aec0aba73c5fde79eafa56e55aa818e9713092f",
+   "len": 81795
   },
   {
    "id": "yaml-file:.forgejo/workflows/conformance.yml",
@@ -623,8 +623,8 @@
     null
    ],
    "file": ".forgejo/workflows/conformance.yml",
-   "sha256": "48f56b47c0bcef74e9bdb1ce081613e0bd37e8041d9647d7246b667b68998677",
-   "len": 12647
+   "sha256": "5b8f82e0364b97d369b7bf8ed0ba3b9fbf867471b9ff162469420e143a5e8876",
+   "len": 12679
   },
   {
    "id": "yaml-map:.forgejo/workflows/conformance.yml",
@@ -634,8 +634,8 @@
     null
    ],
    "file": ".forgejo/workflows/conformance.yml",
-   "sha256": "1cad91307cb6dc196588f0deb902e74c83c00a554bf959f605c78f6d04afbc7f",
-   "len": 59502
+   "sha256": "a71961db09f37e29b01783661b35f4edfd6ac3581d4cdf5b6bae55921bbef229",
+   "len": 59856
   },
   {
    "id": "yaml-file:ivpm.yaml",

@@ -52,8 +52,11 @@ jobs:
       # public. Internal host names, tailnet addresses and CGNAT-range IPs must
       # not appear in tracked files -- if a build ever needs one it belongs in a
       # repository secret, which is masked in logs.
+      #
+      # The host name is matched as a whole word: bare, it is five hex digits,
+      # and a SHA-256 in a test fixture contained it (v3.5.0, 2026-10-21).
       run: |
-        pattern='perch-char\.ts\.net|\.ts\.net|a9550|100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\.[0-9]+\.[0-9]+'
+        pattern='perch-char\.ts\.net|\.ts\.net|(^|[^0-9A-Za-z])a9550([^0-9A-Za-z]|$)|100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\.[0-9]+\.[0-9]+'
         if git grep -nIE "$pattern" -- . ':!.forgejo/workflows/' ; then
           echo "::error::internal identifier found in a tracked file (see matches above)"
           exit 1
