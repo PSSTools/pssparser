@@ -1797,6 +1797,19 @@ antlrcpp::Any AstBuilderInt::visitFunction_decl(PSSParser::Function_declContext 
     // applied here rather than inside mkFunctionPrototype.
     proto->setIs_static(ctx->TOK_STATIC() != 0);
 
+    // pssparser extension of LRM 17.4: the prefix if written, else the
+    // `attr_group` label in force in this body, else public.
+    {
+        FieldAttr acc = accessAttr(ctx->access_modifier());
+        if ((acc & FieldAttr::Private) != FieldAttr::NoFlags) {
+            proto->setAccess(ast::FunctionAccess::FunctionAccess_Private);
+        } else if ((acc & FieldAttr::Protected) != FieldAttr::NoFlags) {
+            proto->setAccess(ast::FunctionAccess::FunctionAccess_Protected);
+        } else {
+            proto->setAccess(ast::FunctionAccess::FunctionAccess_Public);
+        }
+    }
+
     if (ctx->TOK_SEMICOLON()) {
         // A prototype: declared here, defined elsewhere (LRM 20.2.1).
         addChild(proto, ctx->start);

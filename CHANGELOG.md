@@ -10,6 +10,19 @@ The LRM revisions this pssparser supports are listed in `README.md`, in
 `pssparser.SUPPORTED_LRM`, and on the second line of `pssparser --version`.
 Currently: **PSS 3.1** (Public Review Draft, 2026-08-28).
 
+## Unreleased
+
+### Added
+
+- Access protection on functions (an extension beyond LRM 17.4, which covers
+  attributes only). `function_decl` accepts an `access_modifier` prefix
+  (`private target function ...`), and an `attr_group` label (`private:`)
+  now applies to the functions declared after it as well as to fields; a
+  prefix overrides the label. The result is
+  `FunctionPrototype.getAccess()` -> `ast.FunctionAccess`
+  (`FunctionAccess_Public`, the default, `_Protected`, `_Private`); for a
+  function with a body, read it from `FunctionDefinition.getProto()`.
+
 ## 3.5.0 — annotation values
 
 ### Added

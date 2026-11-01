@@ -469,8 +469,16 @@ exec_block_tag:
 // This is what the `TODO: refactor for performance` below asked for; it was
 // found and quantified by the profiling harness
 // (docs/profiling/findings-2026-09-01.md F4).
+//
+// pssparser extension: an optional `access_modifier` prefix
+// (`private target function ...`). LRM 17.4 gives access protection to
+// attributes only. The prefix is unambiguous against the other items that
+// start with an access modifier: `attr_group` is followed by `:`, and
+// `component_data_declaration` / `attr_field` by a data type, `rand`,
+// `static const`, `mutable` or `instance` -- never by `target`, `solve`,
+// `pure`, `function`, or `static function`.
 function_decl:
-	platform_qualifier? is_pure=TOK_PURE? TOK_STATIC? TOK_FUNCTION function_prototype
+	access_modifier? platform_qualifier? is_pure=TOK_PURE? TOK_STATIC? TOK_FUNCTION function_prototype
 	(
 		TOK_SEMICOLON
 		| TOK_LCBRACE procedural_stmt* TOK_RCBRACE

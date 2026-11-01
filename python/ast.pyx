@@ -138,6 +138,10 @@ class ExtendTargetE(IntEnum):
     Stream = ast_decl.ExtendTargetE.ExtendTargetE_Stream
     Struct = ast_decl.ExtendTargetE.ExtendTargetE_Struct
     Monitor = ast_decl.ExtendTargetE.ExtendTargetE_Monitor
+class FunctionAccess(IntEnum):
+    FunctionAccess_Public = ast_decl.FunctionAccess.FunctionAccess_FunctionAccess_Public
+    FunctionAccess_Protected = ast_decl.FunctionAccess.FunctionAccess_FunctionAccess_Protected
+    FunctionAccess_Private = ast_decl.FunctionAccess.FunctionAccess_FunctionAccess_Private
 class FunctionParamDeclKind(IntEnum):
     ParamKind_DataType = ast_decl.FunctionParamDeclKind.FunctionParamDeclKind_ParamKind_DataType
     ParamKind_Type = ast_decl.FunctionParamDeclKind.FunctionParamDeclKind_ParamKind_Type
@@ -6511,6 +6515,10 @@ cdef class FunctionPrototype(NamedScopeChild):
         return dynamic_cast[ast_decl.IFunctionPrototypeP](self._hndl).getIs_core()
     cpdef bool getIs_static(self):
         return dynamic_cast[ast_decl.IFunctionPrototypeP](self._hndl).getIs_static()
+    cpdef  getAccess(self):
+        return dynamic_cast[ast_decl.IFunctionPrototypeP](self._hndl).getAccess()
+    cpdef void setAccess(self, int v):
+        dynamic_cast[ast_decl.IFunctionPrototypeP](self._hndl).setAccess(<ast_decl.FunctionAccess>v)
 
 cdef class GlobalScope(Scope):
     

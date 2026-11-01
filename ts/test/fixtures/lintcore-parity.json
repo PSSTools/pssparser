@@ -359,8 +359,8 @@
     null
    ],
    "file": "ast/functions.yaml",
-   "sha256": "96f46d2ed521a92c83759bc6ae8e3b54feb9078fb2218f89c33e7d917b01212e",
-   "len": 45018
+   "sha256": "85d75792d0c05afa8bd336b45d22b4fd5fa4e299f4725da032f88f551edf3995",
+   "len": 48183
   },
   {
    "id": "yaml-map:ast/functions.yaml",
@@ -370,8 +370,8 @@
     null
    ],
    "file": "ast/functions.yaml",
-   "sha256": "6e7daf1911a5ce9e98752b210002c37257ff5986ebd82810732d324739ac2cf5",
-   "len": 128640
+   "sha256": "362783ff49315dfb8b3f5f0905cd8322e69d8526e5e1cf8330484671daf34717",
+   "len": 136594
   },
   {
    "id": "yaml-file:ast/linking.yaml",
@@ -1758,8 +1758,8 @@
    "id": "reflect-schema",
    "fn": "ReflectSchema",
    "args": [],
-   "sha256": "b1a6e2f76369756bf795d1c4d62b45fee67ca82697db995608cfb1f0ac2c0387",
-   "len": 42082
+   "sha256": "3d8f810bacb1811cff188101e2ccde6198af4024ef0676e5a6854fc70133863a",
+   "len": 42267
   },
   {
    "id": "cel-functions",
