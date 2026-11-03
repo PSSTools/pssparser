@@ -22,7 +22,7 @@ import pytest
 
 from pssparser import ParseException
 
-from ..test_helpers import parse_pss
+from ..test_helpers import assert_marker, assert_no_marker, parse_pss
 
 
 _MODEL = """
@@ -190,3 +190,62 @@ def test_a_like_named_method_on_a_user_type_is_not_judged():
             }
         }
     """)
+
+
+# --- a literal value must fit the field it is written to (LINT502) ---------
+#
+# The value parameter is `bit[SZ]`, the *register's* width, so a value too
+# wide for its field type-checks. Only the resolved field's width says it is
+# wrong. A warning, not an error: the call is legal PSS, and 21.14.1 does not
+# say whether the excess bits are dropped or spill into the next field.
+
+@pytest.mark.parametrize("body, text", [
+    ('regs.csr.write_field("ch_en", 2);',
+     "write_field: value 2 does not fit in field 'ch_en' of 'csr_s', "
+     "which is 1 bit wide"),
+    ('regs.csr.write_field("prio", 0x8);',
+     "value 0x8 does not fit in field 'prio' of 'csr_s', which is 3 bits"),
+    ('regs.csr.write_field("prio", -5);', "value -5 does not fit"),
+    ('regs.csr.write_field("rsvd", 32\'h1000_0000);',
+     "value 32'h1000_0000 does not fit in field 'rsvd'"),
+    ('regs.inline_csr.write_field("prio", 9);', "value 9 does not fit"),
+])
+def test_a_literal_too_wide_for_its_field_warns(body, text):
+    m = assert_marker(_MODEL % body, marker_id="LINT502", text=text, count=1)
+    assert m["severity"] == "warning"
+
+
+def test_write_fields_checks_each_value_against_its_own_field():
+    src = _MODEL % 'regs.csr.write_fields({"ch_en", "prio"}, {1, 8});'
+    assert_marker(src, marker_id="LINT502", text="field 'prio'", count=1)
+    assert_no_marker(src, marker_id="LINT502", text="field 'ch_en'")
+
+
+@pytest.mark.parametrize("body", [
+    'regs.csr.write_field("ch_en", 1);',
+    'regs.csr.write_field("prio", 7);',
+    'regs.csr.write_field("prio", 3\'b111);',
+    # The field's bits read either way: -1 into bit[3] is 0b111.
+    'regs.csr.write_field("prio", -1);',
+    'regs.csr.write_field("prio", -4);',
+    'regs.csr.write_field("rsvd", 0xFFF_FFFF);',
+    'regs.csr.write_fields({"ch_en", "prio"}, {1, 7});',
+    # Not a literal: which of its bits are meant is the author's business.
+    'bit[8] v = 200; regs.csr.write_field("prio", v);',
+    'regs.csr.write_field("prio", 1 << 4);',
+])
+def test_a_value_that_fits_or_is_not_a_literal_does_not_warn(body):
+    assert_no_marker(_MODEL % body, marker_id="LINT502")
+
+
+def test_an_unresolved_field_is_not_also_judged_for_width():
+    """One mistake, one diagnostic: the name error is the whole story."""
+    src = _MODEL % 'regs.csr.write_field("chan_en", 99);'
+    assert_marker(src, text="no field 'chan_en'", count=1)
+    assert_no_marker(src, marker_id="LINT502")
+
+
+def test_mismatched_write_fields_still_checks_the_pairs_it_has():
+    src = _MODEL % 'regs.csr.write_fields({"ch_en", "prio"}, {4});'
+    assert_marker(src, text="2 field name(s) but 1 value(s)")
+    assert_marker(src, marker_id="LINT502", text="field 'ch_en'", count=1)

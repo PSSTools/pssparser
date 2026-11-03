@@ -78,6 +78,7 @@
 #include "pssp/ast/IExprAggrStruct.h"
 #include "pssp/ast/IExprAggrStructElem.h"
 #include "pssp/ast/IExprString.h"
+#include "pssp/impl/TaskClassifyPackable.h"
 #include "pssp/ast/IField.h"
 #include "pssp/ast/IStruct.h"
 #include "pssp/ast/ISymbolTypeScope.h"
@@ -7330,6 +7331,71 @@ ast::IField *TaskResolveRefs::resolveRegField(
     return f;
 }
 
+void TaskResolveRefs::checkRegFieldValue(
+        ast::IExprMemberPathElem *elem,
+        ast::IStruct             *vs,
+        ast::IField              *f,
+        ast::IExpr               *val_e) {
+    int64_t v;
+    bool neg;
+    if (!f->getType() || !literalValue(val_e, v, neg)) {
+        // Only a literal. A folded expression or a variable is converted to
+        // the register's width, and which of its bits are meant is the
+        // author's business; a literal too wide for its field is a typo.
+        return;
+    }
+
+    PackableInfo info = TaskClassifyPackable(
+        m_ctxt->getFactory(), m_ctxt->root()).classify(f->getType());
+    if (info.kind != PackableInfo::Ok || info.bits <= 0 || info.bits >= 64) {
+        return;
+    }
+
+    // Fits as the field's bits read either way, as an annotation parameter
+    // does (checkAnnotationParamValue): `-1` into a `bit[3]` field is 0b111.
+    int64_t width = info.bits;
+    int64_t lo = -(((int64_t)1) << (width - 1));
+    int64_t hi = (((int64_t)1) << width) - 1;
+    int64_t sv = neg ? -v : v;
+    if (sv >= lo && sv <= hi) {
+        return;
+    }
+
+    // A warning, not an error: the value parameter is `bit[SZ]`, so the call
+    // is legal PSS, and 21.14.1 does not say what happens to the excess bits
+    // -- truncated, or spilled into the neighbouring fields.
+    // As written: `0x1F` says more than `31` about which typo it was.
+    ast::IExpr *lit_e = val_e;
+    if (ast::IExprUnary *u = NodeKind::cast<ast::IExprUnary>(lit_e)) {
+        lit_e = u->getRhs();
+    }
+    std::string image;
+    if (ast::IExprUnsignedNumber *n = NodeKind::cast<ast::IExprUnsignedNumber>(lit_e)) {
+        image = n->getImage();
+    } else if (ast::IExprSignedNumber *n = NodeKind::cast<ast::IExprSignedNumber>(lit_e)) {
+        image = n->getImage();
+    }
+    if (image.empty()) {
+        image = std::to_string((long long)v);
+    }
+
+    char tmp[512];
+    snprintf(tmp, sizeof(tmp),
+        "%s: value %s%s does not fit in field '%s' of '%s', which is "
+        "%lld bit%s wide",
+        elem->getId()->getId().c_str(),
+        neg ? "-" : "", image.c_str(),
+        f->getName()->getId().c_str(),
+        structName(vs),
+        (long long)width, (width == 1) ? "" : "s");
+    m_ctxt->addMarker(
+        MarkerSeverityE::Warn,
+        elem->getId()->getLocation(),
+        std::string(tmp),
+        {{f->getLocation(), "declared here"}},
+        "LINT502");
+}
+
 void TaskResolveRefs::checkRegFieldRefs(
         ast::IExprMemberPathElem *elem,
         ast::ISymbolScope        *recv_s) {
@@ -7367,7 +7433,10 @@ void TaskResolveRefs::checkRegFieldRefs(
 
     if (one) {
         if (args.size() >= 1) {
-            resolveRegField(elem, vs, args.at(0).get());
+            ast::IField *f = resolveRegField(elem, vs, args.at(0).get());
+            if (f && args.size() >= 2) {
+                checkRegFieldValue(elem, vs, f, args.at(1).get());
+            }
         }
         return;
     }
@@ -7402,11 +7471,16 @@ void TaskResolveRefs::checkRegFieldRefs(
 
         std::set<std::string> seen;
 
-        for (std::vector<ast::IExprUP>::const_iterator
-            it=names->getElems().begin(); it!=names->getElems().end(); it++) {
-            ast::IField *f = resolveRegField(elem, vs, it->get());
+        for (uint32_t ni=0; ni<names->getElems().size(); ni++) {
+            ast::IField *f = resolveRegField(elem, vs,
+                names->getElems().at(ni).get());
             if (!f) {
                 continue;
+            }
+            // Values pair with names by position. When the counts differ
+            // (reported above) the pairing is unknown past the shorter list.
+            if (vals && ni < vals->getElems().size()) {
+                checkRegFieldValue(elem, vs, f, vals->getElems().at(ni).get());
             }
             // §21.14.1(d). It matters more here than it looks: the whole point
             // of the plural form is that the fields are written in ONE

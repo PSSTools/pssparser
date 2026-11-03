@@ -215,6 +215,31 @@ CORE_EMITTED: List[MarkerDef] = [
         ),
     ),
     MarkerDef(
+        id="LINT502",
+        name="reg-field-value-too-wide",
+        tier="suspicious",
+        family="register",
+        since="2026.3",
+        severity="warning",
+        summary="A literal written to a register field is wider than the field",
+        detail=(
+            "``write_field`` and ``write_fields`` (LRM 21.14.1) take the "
+            "value as ``bit[SZ]`` -- the width of the whole register, not "
+            "of the field named -- so a value too wide for its field "
+            "type-checks.  21.14.1 does not say what happens to the excess "
+            "bits: a tool may truncate them or let them spill into the "
+            "neighbouring fields.  Either way it is almost certainly a "
+            "typo.  Message: ``write_field: value 8 does not fit in field "
+            "'mode' of 'csr_s', which is 3 bits wide``, with the field's "
+            "declaration as a related location.\n\n"
+            "Only literal values are checked, negated or not.  A value fits "
+            "when its bits fit the field read either way, so ``-1`` into a "
+            "``bit[3]`` field (0b111) is accepted, as for an annotation "
+            "parameter.  A variable or a folded expression is not checked: "
+            "which of its bits are meant is the author's business."
+        ),
+    ),
+    MarkerDef(
         id="LINT601",
         name="deprecated-braceless-compile-if",
         tier="portability",

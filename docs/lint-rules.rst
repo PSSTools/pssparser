@@ -1057,6 +1057,19 @@ Register width has no primitive access function
 
 LRM 21.14.5a translates register reads and writes into the primitive ``read8/16/32/64`` and ``write8/16/32/64`` functions (21.13.9), chosen by the register's size. A register ``SZ`` bits wide, where ``SZ`` is not 8, 16, 32 or 64, has no such function, so its access cannot be translated as the spec describes. Not a "shall" in the spec, so a warning. A packed struct of any size is legal on its own -- a 96-bit DMA descriptor, say; this is only about using one as a register value type. Message: ``reg_c width SZ = 96 has no primitive access function; use 8, 16, 32 or 64 bits``. For a register whose value type is narrower than a primitive, give ``SZ`` explicitly (``reg_c<my12_s, READWRITE, 16>``).
 
+.. _lint502:
+
+LINT502: ``reg-field-value-too-wide``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Tier:** suspicious; **Default severity:** warning; **Since:** 2026.3
+
+A literal written to a register field is wider than the field
+
+``write_field`` and ``write_fields`` (LRM 21.14.1) take the value as ``bit[SZ]`` -- the width of the whole register, not of the field named -- so a value too wide for its field type-checks.  21.14.1 does not say what happens to the excess bits: a tool may truncate them or let them spill into the neighbouring fields.  Either way it is almost certainly a typo.  Message: ``write_field: value 8 does not fit in field 'mode' of 'csr_s', which is 3 bits wide``, with the field's declaration as a related location.
+
+Only literal values are checked, negated or not.  A value fits when its bits fit the field read either way, so ``-1`` into a ``bit[3]`` field (0b111) is accepted, as for an annotation parameter.  A variable or a folded expression is not checked: which of its bits are meant is the author's business.
+
 Deprecated forms
 ----------------
 

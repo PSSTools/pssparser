@@ -3846,6 +3846,7 @@
      "LINT410",
      "LINT411",
      "LINT501",
+     "LINT502",
      "LINT601",
      "LINT602",
      "LINT603",
@@ -3921,7 +3922,8 @@
       "held_back": [
        "LINT409",
        "LINT410",
-       "LINT411"
+       "LINT411",
+       "LINT502"
       ],
       "options": {}
      }
@@ -3969,6 +3971,10 @@
       "key": "suspicious"
      },
      "LINT501": {
+      "severity": "info",
+      "key": "suspicious"
+     },
+     "LINT502": {
       "severity": "info",
       "key": "suspicious"
      },
@@ -4117,6 +4123,7 @@
      "LINT410",
      "LINT411",
      "LINT501",
+     "LINT502",
      "LINT601",
      "LINT602",
      "LINT603",
@@ -4204,6 +4211,7 @@
        "LINT410",
        "LINT411",
        "LINT501",
+       "LINT502",
        "LINT601",
        "LINT602",
        "TEST-BR001",
@@ -4372,6 +4380,7 @@
      "LINT410",
      "LINT411",
      "LINT501",
+     "LINT502",
      "LINT601",
      "LINT602",
      "LINT603",
@@ -8202,6 +8211,24 @@
       "source": "core"
      },
      {
+      "id": "LINT502",
+      "name": "reg-field-value-too-wide",
+      "tier": "suspicious",
+      "family": "register",
+      "since": "2026.3",
+      "status": "active",
+      "severity": "warning",
+      "aliases": [],
+      "replaced_by": [],
+      "default_enabled": true,
+      "minimal": false,
+      "summary": "A literal written to a register field is wider than the field",
+      "detail": "``write_field`` and ``write_fields`` (LRM 21.14.1) take the value as ``bit[SZ]`` -- the width of the whole register, not of the field named -- so a value too wide for its field type-checks.  21.14.1 does not say what happens to the excess bits: a tool may truncate them or let them spill into the neighbouring fields.  Either way it is almost certainly a typo.  Message: ``write_field: value 8 does not fit in field 'mode' of 'csr_s', which is 3 bits wide``, with the field's declaration as a related location.\n\nOnly literal values are checked, negated or not.  A value fits when its bits fit the field read either way, so ``-1`` into a ``bit[3]`` field (0b111) is accepted, as for an annotation parameter.  A variable or a folded expression is not checked: which of its bits are meant is the author's business.",
+      "lrm": [],
+      "doc_url": "https://psstools.github.io/pssparser/lint-rules.html#lint502",
+      "source": "core"
+     },
+     {
       "id": "LINT601",
       "name": "deprecated-braceless-compile-if",
       "tier": "portability",
@@ -10666,6 +10693,16 @@
       "PSS016"
      ],
      "minimal": true,
+     "source": "core"
+    },
+    {
+     "id": "LINT502",
+     "name": "reg-field-value-too-wide",
+     "tier": "suspicious",
+     "severity": "warning",
+     "status": "active",
+     "aliases": [],
+     "minimal": false,
      "source": "core"
     },
     {

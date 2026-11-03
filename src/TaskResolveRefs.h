@@ -857,6 +857,19 @@ protected:
         ast::IStruct             *vs,
         ast::IExpr               *name_e);
 
+    /**
+     * Warn (LINT502) when a literal value written to a resolved register
+     * field needs more bits than the field has. The value parameter is
+     * `bit[SZ]` -- the *register's* width -- so the call type-checks; only
+     * the field's own width, known once the name is resolved, says it is
+     * wrong.
+     */
+    void checkRegFieldValue(
+        ast::IExprMemberPathElem *elem,
+        ast::IStruct             *vs,
+        ast::IField              *f,
+        ast::IExpr               *val_e);
+
 private:
     /**
      * The expression of the `ProceduralStmtExpr` currently being walked, or
