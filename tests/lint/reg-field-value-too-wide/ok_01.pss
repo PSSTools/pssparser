@@ -1,0 +1,16 @@
+// expect: none
+import addr_reg_pkg::*;
+struct cr_s : packed_s<> { bit en; bit[11] pad; bit[4] mode; bit[16] coeff; }
+pure component regs_c : reg_group_c { reg_c<cr_s> cr; }
+component pss_top {
+  regs_c regs;
+  action a {
+    rand bit[8] m8;
+    exec body {
+      comp.regs.cr.write_field("mode", 0xF);
+      comp.regs.cr.write_field("mode", -1);
+      comp.regs.cr.write_field("en", 1);
+      comp.regs.cr.write_fields({"mode", "coeff"}, {m8, 0xFFFF});
+    }
+  }
+}

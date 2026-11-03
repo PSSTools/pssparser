@@ -1,0 +1,15 @@
+// expect: LINT502 @ 10:20, LINT502 @ 11:20, LINT502 @ 12:20
+import addr_reg_pkg::*;
+struct cr_s : packed_s<> { bit en; bit[11] pad; bit[4] mode; bit[16] coeff; }
+pure component regs_c : reg_group_c { reg_c<cr_s> cr; }
+component pss_top {
+  regs_c regs;
+  action a {
+    rand bit[8] m8;
+    exec body {
+      comp.regs.cr.write_field("mode", 0x1F);
+      comp.regs.cr.write_field("en", 2);
+      comp.regs.cr.write_fields({"mode", "coeff"}, {m8, 0x10000});
+    }
+  }
+}
