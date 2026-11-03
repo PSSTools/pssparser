@@ -576,6 +576,11 @@ cdef extern from "pssp/ast/ExtendTargetE.h" namespace "pssp::ast":
         ExtendTargetE_Stream "pssp::ast::ExtendTargetE::Stream"
         ExtendTargetE_Struct "pssp::ast::ExtendTargetE::Struct"
         ExtendTargetE_Monitor "pssp::ast::ExtendTargetE::Monitor"
+cdef extern from "pssp/ast/FunctionAccess.h" namespace "pssp::ast":
+    cdef enum FunctionAccess:
+        FunctionAccess_FunctionAccess_Public "pssp::ast::FunctionAccess::FunctionAccess_Public"
+        FunctionAccess_FunctionAccess_Protected "pssp::ast::FunctionAccess::FunctionAccess_Protected"
+        FunctionAccess_FunctionAccess_Private "pssp::ast::FunctionAccess::FunctionAccess_Private"
 cdef extern from "pssp/ast/FunctionParamDeclKind.h" namespace "pssp::ast":
     cdef enum FunctionParamDeclKind:
         FunctionParamDeclKind_ParamKind_DataType "pssp::ast::FunctionParamDeclKind::ParamKind_DataType"
@@ -2562,6 +2567,9 @@ cdef extern from "pssp/ast/IFunctionPrototype.h" namespace "pssp::ast":
         bool getIs_static()
         
         void setIs_static(bool v)
+        FunctionAccess getAccess()
+        
+        void setAccess(FunctionAccess v)
 
 cdef extern from "pssp/ast/IGlobalScope.h" namespace "pssp::ast":
     cpdef cppclass IGlobalScope(IScope):

@@ -2058,6 +2058,8 @@ cdef class FunctionPrototype(NamedScopeChild):
     cpdef bool getIs_solve(self)
     cpdef bool getIs_core(self)
     cpdef bool getIs_static(self)
+    cpdef  getAccess(self)
+    cpdef void setAccess(self, int v)
 
 cdef class GlobalScope(Scope):
     

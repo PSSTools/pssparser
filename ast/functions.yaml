@@ -1,4 +1,17 @@
 enums:
+  - FunctionAccess:
+      doc: |
+          Access protection of a function -- a pssparser extension of LRM
+          17.4, whose `access_modifier` covers attributes only. A function in
+          a package or component may be written with an `access_modifier`
+          prefix (`private target function ...`), and a function declared
+          after an `attr_group` label (`private:`) in a component takes that
+          label's access. A prefix overrides the label, as for fields. The
+          default, when neither is written, is public.
+      values:
+        - FunctionAccess_Public: "Public: written `public`, or no access stated (the default)"
+        - FunctionAccess_Protected: "Declared `protected`, by prefix or by a `protected:` label in force"
+        - FunctionAccess_Private: "Declared `private`, by prefix or by a `private:` label in force"
   - ParamDir:
       doc: |
           Direction of a function parameter -- LRM 20.2.2,
@@ -246,6 +259,17 @@ classes:
                 keyword is recorded: a function in a package is static
                 whether or not it says so (20.2.1). A target-template
                 function records `static` on TargetTemplateFunction instead.
+        - access:
+            type: FunctionAccess
+            is_ctor: false
+            init: FunctionAccess::FunctionAccess_Public
+            doc: |
+                Access protection of a function declared with `function_decl`
+                (pssparser extension of LRM 17.4): the `access_modifier`
+                prefix if written, else the `attr_group` label in force in
+                the enclosing body, else FunctionAccess_Public. Set by the
+                parser; always FunctionAccess_Public on other prototypes
+                (imports, target-template functions, built-in methods).
 
   - FunctionImport:
       super: ScopeChild

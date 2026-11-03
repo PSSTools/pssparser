@@ -98,6 +98,11 @@ class ExtendTargetE(IntEnum):
     Struct = 8
     Monitor = 9
     
+class FunctionAccess(IntEnum):
+    FunctionAccess_Public = 0
+    FunctionAccess_Protected = 1
+    FunctionAccess_Private = 2
+    
 class FunctionParamDeclKind(IntEnum):
     ParamKind_DataType = 0
     ParamKind_Type = 1
@@ -5649,6 +5654,9 @@ class FunctionPrototype(NamedScopeChild):
     def getParameter(self, i: int) -> FunctionParamDecl: ...
     def addParameter(self, i: FunctionParamDecl) -> None: ...
     def numParameters(self) -> int: ...
+    
+    def getAccess(self) -> int: ...
+    def setAccess(self, v : FunctionAccess | int) -> None: ...
     
 class GlobalScope(Scope):
     """
