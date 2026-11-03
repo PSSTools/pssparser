@@ -30,6 +30,11 @@ Currently: **PSS 3.1** (Public Review Draft, 2026-08-28).
 - C: `libpssparser_c` and `pssp/pssparser_c.h`, a flat C interface to the session
   (`pssp_session_*`) for hosts that cannot call C++, the Rust binding first. Markers,
   file names and inactive regions cross as JSON, in the shapes the WASM build uses.
+- LINT502 `reg-field-value-too-wide`: a literal value passed to `write_field` or
+  `write_fields` needs more bits than the register field it names. The value
+  parameter is `bit[SZ]`, the register's width, so the call type-checks. Only
+  literals are checked, and `-1` (all ones) is accepted. Rules-version 2026.3,
+  selected by `recommended` and up.
 
 ### Changed
 
